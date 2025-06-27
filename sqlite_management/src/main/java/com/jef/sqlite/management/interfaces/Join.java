@@ -1,17 +1,17 @@
 package com.jef.sqlite.management.interfaces;
 
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Column {
+public @interface Join {
 
-
-    String name() default "";
+    String targetName();
+    Class<?> relationShip();
+    String source();
+    String defaultValue();
     boolean permitNull() default true;
-    boolean isPrimaryKey() default false;
-    boolean isAutoIncrement() default false;
-    String defaultValue() default "";
 
 
 }

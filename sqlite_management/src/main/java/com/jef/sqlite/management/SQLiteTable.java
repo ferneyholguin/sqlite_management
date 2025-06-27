@@ -3,6 +3,7 @@ package com.jef.sqlite.management;
 
 import com.jef.sqlite.management.exceptions.SQLiteException;
 import com.jef.sqlite.management.interfaces.Column;
+import com.jef.sqlite.management.interfaces.Join;
 import com.jef.sqlite.management.interfaces.Table;
 
 import java.lang.reflect.Field;
@@ -48,7 +49,7 @@ public abstract class SQLiteTable<T> {
             throw new SQLiteException("Entity class " + entityClass.getName() + " has no table name defined");
 
         List<Field> fields = Stream.of(entityClass.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Column.class))
+                .filter(field -> field.isAnnotationPresent(Column.class) || field.isAnnotationPresent(Join.class))
                 .collect(Collectors.toList());
 
         if (fields.isEmpty())
@@ -61,7 +62,16 @@ public abstract class SQLiteTable<T> {
                 .append(" (\n");
 
         String instructionsCreateColumns = fields.stream()
-                .map(this::instructionCreateColumn)
+                .map(field -> {
+                    if (field.isAnnotationPresent(Column.class)) {
+                        return instructionCreateFromColumn(field);
+                    } else if (field.isAnnotationPresent(Join.class)) {
+                        return instructionCreateFromJoin(field);
+                    } else {
+                        throw new SQLiteException("Field " + field.getName() + " in class " + entityClass.getName() + 
+                                " is not annotated with @Column or @Join");
+                    }
+                })
                 .collect(Collectors.joining(", \n"));
 
         createTableSQL.append(instructionsCreateColumns);
@@ -70,7 +80,7 @@ public abstract class SQLiteTable<T> {
     }
 
 
-    private String instructionCreateColumn(Field field) {
+    private String instructionCreateFromColumn(Field field) {
         Column column = field.getAnnotation(Column.class);
         Class<?> type = field.getType();
 
@@ -102,19 +112,84 @@ public abstract class SQLiteTable<T> {
         return instruction.toString();
     }
 
+    private String instructionCreateFromJoin(Field field) {
+        Join join = field.getAnnotation(Join.class);
+
+        if (join == null)
+            throw new SQLiteException("Field " + field.getName() + " in class " + entityClass.getName() + " is not annotated with @Join");
+
+        if (join.targetName() == null || join.targetName().isEmpty())
+            throw new SQLiteException("Field " + field.getName() + " in class " + entityClass.getName() + " has no target name defined");
+
+        if (join.relationShip() == null)
+            throw new SQLiteException("Field " + field.getName() + " in class " + entityClass.getName() + " has no relationship class defined");
+
+        if (join.source() == null || join.source().isEmpty())
+            throw new SQLiteException("Field " + field.getName() + " in class " + entityClass.getName() + " has no source column defined");
+
+        StringBuilder instruction = new StringBuilder();
+
+        // Find the source field in the relationship class to determine the correct column type
+        Field sourceField = findFieldByColumnName(join.relationShip(), join.source());
+        Class<?> columnType = sourceField != null ? sourceField.getType() : field.getType();
+
+        instruction
+                .append("\"")
+                .append(join.targetName())
+                .append("\" ")
+                .append(getTypeColumn(columnType));
+
+        if (!join.permitNull())
+            instruction.append(" NOT NULL");
+
+        if (join.defaultValue() != null && !join.defaultValue().isEmpty()) {
+            instruction.append(" DEFAULT ");
+            if (field.getType() == String.class) {
+                instruction.append("'").append(join.defaultValue()).append("'");
+            } else {
+                instruction.append(join.defaultValue());
+            }
+        }
+
+        // Add foreign key constraint
+        if (join.relationShip().isAnnotationPresent(Table.class)) {
+            Table targetTable = join.relationShip().getAnnotation(Table.class);
+            instruction.append(", FOREIGN KEY (\"")
+                    .append(join.targetName())
+                    .append("\") REFERENCES \"")
+                    .append(targetTable.name())
+                    .append("\" (\"")
+                    .append(join.source())
+                    .append("\")");
+        }
+
+        return instruction.toString();
+    }
+
 
     private String getTypeColumn(Class<?> type) {
-        return switch (type.getSimpleName().toLowerCase()) {
-            case "string" -> "TEXT";
-            case "short", "int", "integer", "boolean" -> "INTEGER";
-            case "long" -> "BIGINT";
-            case "double", "float" -> "REAL";
-            case "byte", "byte[]", "blob" -> "BLOB";
-
-            default -> throw new SQLiteException("Unsupported type: " + type.getName()
-                    + " in table " + entityClass.getName());
-        };
-
+        String typeName = type.getSimpleName().toLowerCase();
+        switch (typeName) {
+            case "string":
+                return "TEXT";
+            case "short":
+            case "int":
+            case "integer":
+            case "boolean":
+                return "INTEGER";
+            case "long":
+                return "BIGINT";
+            case "double":
+            case "float":
+                return "REAL";
+            case "byte":
+            case "byte[]":
+            case "blob":
+                return "BLOB";
+            default:
+                throw new SQLiteException("Unsupported type: " + type.getName()
+                        + " in table " + entityClass.getName());
+        }
     }
 
 
@@ -123,23 +198,29 @@ public abstract class SQLiteTable<T> {
             return "";
 
         StringBuilder defaultValue = new StringBuilder(" DEFAULT ");
+        String typeName = type.getSimpleName().toLowerCase();
 
-        switch (type.getSimpleName().toLowerCase()) {
-            case "string" -> defaultValue.append("'").append(column.defaultValue()).append("'");
-
-            case "short", "int", "integer", "long" -> {
+        switch (typeName) {
+            case "string":
+                defaultValue.append("'").append(column.defaultValue()).append("'");
+                break;
+            case "short":
+            case "int":
+            case "integer":
+            case "long":
                 if (validateNumber(column.defaultValue()))
                     defaultValue.append(column.defaultValue());
                 else
                     throw new SQLiteException("Invalid default value for column " + column.name() + ": " + column.defaultValue());
-            }
-            case "double", "float" -> {
+                break;
+            case "double":
+            case "float":
                 if (validateDouble(column.defaultValue()))
                     defaultValue.append(column.defaultValue());
                 else
                     throw new SQLiteException("Invalid default value for column " + column.name() + ": " + column.defaultValue());
-            }
-            case "boolean" -> {
+                break;
+            case "boolean":
                 String value = column.defaultValue().toLowerCase().trim();
                 if (value.equals("true") || value.equals("1"))
                     defaultValue.append("1");
@@ -147,8 +228,9 @@ public abstract class SQLiteTable<T> {
                     defaultValue.append("0");
                 else
                     throw new SQLiteException("Invalid default value for column " + column.name() + ": " + column.defaultValue());
-                }
-
+                break;
+            default:
+                throw new SQLiteException("Unsupported type for default value: " + type.getName() + " for column " + column.name());
         }
 
         return defaultValue.toString();
@@ -172,6 +254,18 @@ public abstract class SQLiteTable<T> {
         } catch (NumberFormatException e) {
             return false;
         }
+    }
+
+    private Field findFieldByColumnName(Class<?> clazz, String columnName) {
+        for (Field field : clazz.getDeclaredFields()) {
+            if (field.isAnnotationPresent(Column.class)) {
+                Column column = field.getAnnotation(Column.class);
+                if (column.name().equals(columnName)) {
+                    return field;
+                }
+            }
+        }
+        return null;
     }
 
 

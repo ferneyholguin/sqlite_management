@@ -1,12 +1,16 @@
 package com.jef.sqlite.management;
 
+import com.jef.sqlite.management.interfaces.Column;
 import com.jef.sqlite.management.interfaces.Table;
 
 @Table(name = "products")
 public class Product {
 
+    @Column(name = "id", isPrimaryKey = true, isAutoIncrement = true)
     private int id;
+    @Column(name = "name")
     private String name;
+    @Column(name = "line")
     private String line;
 
     public Product() {
