@@ -19,6 +19,15 @@ public interface DynamicQuery<T> {
     List<T> findAll();
 
     /**
+     * Saves an entity to the database. If the entity has a primary key value and exists in the database,
+     * it will be updated. Otherwise, it will be inserted.
+     * 
+     * @param entity The entity to save
+     * @return The saved entity with any auto-generated values (like auto-increment IDs)
+     */
+    T save(T entity);
+
+    /**
      * Find all entities in the table, ordered by a specific field
      * Method name pattern: findAllOrderBy[FieldName]
      * @param direction the sort direction ("ASC" or "DESC")

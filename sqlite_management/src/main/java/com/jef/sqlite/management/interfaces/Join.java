@@ -10,8 +10,9 @@ public @interface Join {
     String targetName();
     Class<?> relationShip();
     String source();
-    String defaultValue();
-    boolean permitNull() default true;
+    String defaultValue() default "";
+    boolean isUnique() default false;
+    boolean permitNull() default false;
 
 
 }

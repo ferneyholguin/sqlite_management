@@ -3,6 +3,7 @@ package com.jef.sqlite.management;
 import com.jef.sqlite.management.interfaces.DynamicQuery;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductQuery extends DynamicQuery<Product> {
 
@@ -28,19 +29,16 @@ public interface ProductQuery extends DynamicQuery<Product> {
     List<Product> findAllOrderById(String direction);
 
     /**
-     * Find all products with a specific line, ordered by name
-     * @param line the product line to search for
-     * @param direction the sort direction ("ASC" or "DESC")
-     * @return a list of products with the given line, ordered by name
-     */
-    List<Product> findAllByLineOrderByName(String line, String direction);
-
-    /**
      * Find all products with a specific name, ordered by id
      * @param name the product name to search for
      * @param direction the sort direction ("ASC" or "DESC")
      * @return a list of products with the given name, ordered by id
      */
     List<Product> findAllByNameOrderById(String name, String direction);
+
+    Optional<Product> findById(int id);
+
+
+
 
 }

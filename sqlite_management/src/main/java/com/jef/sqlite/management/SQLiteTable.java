@@ -1,6 +1,10 @@
 package com.jef.sqlite.management;
 
 
+import android.content.ContentValues;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+
 import com.jef.sqlite.management.exceptions.SQLiteException;
 import com.jef.sqlite.management.interfaces.Column;
 import com.jef.sqlite.management.interfaces.Join;
@@ -48,11 +52,13 @@ public abstract class SQLiteTable<T> {
         if (table.name() == null || table.name().isEmpty())
             throw new SQLiteException("Entity class " + entityClass.getName() + " has no table name defined");
 
-        List<Field> fields = Stream.of(entityClass.getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(Column.class) || field.isAnnotationPresent(Join.class))
+        // Only include Column fields for table creation
+        // Join fields are handled separately and don't need columns in the table
+        List<Field> columnFields = Stream.of(entityClass.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Column.class))
                 .collect(Collectors.toList());
 
-        if (fields.isEmpty())
+        if (columnFields.isEmpty())
             throw new SQLiteException("Entity class " + entityClass.getName() + " has no columns defined");
 
         StringBuffer createTableSQL = new StringBuffer("CREATE TABLE IF NOT EXISTS ");
@@ -61,22 +67,21 @@ public abstract class SQLiteTable<T> {
                 .append(table.name())
                 .append(" (\n");
 
-        String instructionsCreateColumns = fields.stream()
-                .map(field -> {
-                    if (field.isAnnotationPresent(Column.class)) {
-                        return instructionCreateFromColumn(field);
-                    } else if (field.isAnnotationPresent(Join.class)) {
-                        return instructionCreateFromJoin(field);
-                    } else {
-                        throw new SQLiteException("Field " + field.getName() + " in class " + entityClass.getName() + 
-                                " is not annotated with @Column or @Join");
-                    }
-                })
+        String instructionsCreateColumns = columnFields.stream()
+                .map(this::instructionCreateFromColumn)
                 .collect(Collectors.joining(", \n"));
 
         createTableSQL.append(instructionsCreateColumns);
 
         createTableSQL.append("\n);");
+
+        // Execute the SQL statement to create the table
+        SQLiteDatabase db = management.getWritableDatabase();
+        try {
+            db.execSQL(createTableSQL.toString());
+        } finally {
+            db.close();
+        }
     }
 
 
@@ -106,6 +111,22 @@ public abstract class SQLiteTable<T> {
 
         if (column.isAutoIncrement())
             instruction.append(" AUTOINCREMENT");
+
+        // Add UNIQUE constraint if the column itself is marked as unique
+        // or if it's a source for a unique join relationship
+        boolean isUniqueJoinSource = false;
+        for (Field joinField : entityClass.getDeclaredFields()) {
+            if (joinField.isAnnotationPresent(Join.class)) {
+                Join join = joinField.getAnnotation(Join.class);
+                if (join.isUnique() && join.source().equals(column.name())) {
+                    isUniqueJoinSource = true;
+                    break;
+                }
+            }
+        }
+
+        if ((column.isUnique() || isUniqueJoinSource) && !column.isPrimaryKey())
+            instruction.append(" UNIQUE");
 
         instruction.append(getDefaultValue(column, type));
 
@@ -141,6 +162,9 @@ public abstract class SQLiteTable<T> {
 
         if (!join.permitNull())
             instruction.append(" NOT NULL");
+
+        if (join.isUnique())
+            instruction.append(" UNIQUE");
 
         if (join.defaultValue() != null && !join.defaultValue().isEmpty()) {
             instruction.append(" DEFAULT ");

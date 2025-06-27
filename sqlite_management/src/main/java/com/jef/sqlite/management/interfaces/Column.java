@@ -11,6 +11,7 @@ public @interface Column {
     boolean permitNull() default true;
     boolean isPrimaryKey() default false;
     boolean isAutoIncrement() default false;
+    boolean isUnique() default false;
     String defaultValue() default "";
 
 

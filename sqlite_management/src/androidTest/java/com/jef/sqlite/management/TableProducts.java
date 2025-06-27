@@ -50,15 +50,6 @@ public class TableProducts extends SQLiteTable<Product>{
         return query().findAllOrderById(ascending ? "ASC" : "DESC");
     }
 
-    /**
-     * Get all products with a specific line, ordered by name
-     * @param line the product line to search for
-     * @param ascending true for ascending order, false for descending
-     * @return a list of products with the given line, ordered by name
-     */
-    public List<Product> getProductsByLineOrderedByName(String line, boolean ascending) {
-        return query().findAllByLineOrderByName(line, ascending ? "ASC" : "DESC");
-    }
 
     /**
      * Get all products with a specific name, ordered by id
@@ -68,6 +59,15 @@ public class TableProducts extends SQLiteTable<Product>{
      */
     public List<Product> getProductsByNameOrderedById(String name, boolean ascending) {
         return query().findAllByNameOrderById(name, ascending ? "ASC" : "DESC");
+    }
+
+    /**
+     * Save a product to the database
+     * @param product the product to save
+     * @return the saved product with any auto-generated values (like auto-increment IDs)
+     */
+    public Product saveProduct(Product product) {
+        return query().save(product);
     }
 
 }
