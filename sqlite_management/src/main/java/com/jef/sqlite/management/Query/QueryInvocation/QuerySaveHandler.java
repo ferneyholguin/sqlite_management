@@ -23,6 +23,7 @@ import java.util.Map;
  * @param <T> The entity type being saved
  */
 public class QuerySaveHandler<T> {
+    
     private final Class<T> entityClass;
     private final SQLiteManagement management;
     private final String tableName;
@@ -35,6 +36,7 @@ public class QuerySaveHandler<T> {
      * @param management The SQLiteManagement instance
      */
     public QuerySaveHandler(Class<T> entityClass, SQLiteManagement management) {
+
         this.entityClass = entityClass;
         this.management = management;
         this.tableName = entityClass.getAnnotation(Table.class).name();
@@ -46,8 +48,7 @@ public class QuerySaveHandler<T> {
     }
 
     /**
-     * Saves an entity to the database. If the entity has a primary key value and exists in the database,
-     * it will be updated. Otherwise, it will be inserted.
+     * Saves an entity to the database by inserting it.
      * 
      * @param entity The entity to save
      * @return The saved entity with any auto-generated values (like auto-increment IDs)
@@ -146,7 +147,6 @@ public class QuerySaveHandler<T> {
         // Create ContentValues from entity fields
         ContentValues values = new ContentValues();
         Field primaryKeyField = null;
-        Object primaryKeyValue = null;
 
         // Process all fields with Column annotation
         for (Field field : entityClass.getDeclaredFields()) {
@@ -167,7 +167,6 @@ public class QuerySaveHandler<T> {
                 // Remember the primary key field and value for later
                 if (column.isPrimaryKey()) {
                     primaryKeyField = field;
-                    primaryKeyValue = value;
 
                     // Skip auto-increment primary keys with default values for inserts
                     if (column.isAutoIncrement() && isDefaultPrimaryKeyValue(value))
@@ -198,53 +197,22 @@ public class QuerySaveHandler<T> {
         // Perform the database operation
         SQLiteDatabase db = management.getWritableDatabase();
         try {
-            boolean isUpdate = false;
+            // Insert new entity
+            long id = db.insert(tableName, null, values);
+            if (id == -1)
+                throw new SQLiteException("Failed to insert entity into table " + tableName);
 
-            // Check if this is an update (entity exists) or insert (new entity)
-            if (primaryKeyField != null && primaryKeyValue != null && !isDefaultPrimaryKeyValue(primaryKeyValue)) {
-                Column pkColumn = primaryKeyField.getAnnotation(Column.class);
-                String pkColumnName = pkColumn.name();
-
-                String[] columns = {pkColumnName};
-                String selection = pkColumnName + " = ?";
-                String[] selectionArgs = {primaryKeyValue.toString()};
-
-                try (Cursor cursor = db.query(tableName, columns, selection, selectionArgs, null, null, null)) {
-                    isUpdate = cursor.getCount() > 0;
-                }
-            }
-
-            long id;
-            if (isUpdate) {
-                // Update existing entity
-                Column pkColumn = primaryKeyField.getAnnotation(Column.class);
-                String pkColumnName = pkColumn.name();
-
-                String whereClause = pkColumnName + " = ?";
-                String[] whereArgs = {primaryKeyValue.toString()};
-
-                id = db.update(tableName, values, whereClause, whereArgs);
-                if (id <= 0) {
-                    throw new SQLiteException("Failed to update entity in table " + tableName);
-                }
-            } else {
-                // Insert new entity
-                id = db.insert(tableName, null, values);
-                if (id == -1)
-                    throw new SQLiteException("Failed to insert entity into table " + tableName);
-
-                // If we have an auto-increment primary key, set its value in the entity
-                if (primaryKeyField != null && primaryKeyField.getAnnotation(Column.class).isAutoIncrement()) {
-                    primaryKeyField.setAccessible(true);
-                    try {
-                        if (primaryKeyField.getType() == int.class || primaryKeyField.getType() == Integer.class) {
-                            primaryKeyField.set(entity, (int) id);
-                        } else if (primaryKeyField.getType() == long.class || primaryKeyField.getType() == Long.class) {
-                            primaryKeyField.set(entity, id);
-                        }
-                    } catch (IllegalAccessException e) {
-                        throw new SQLiteException("Error setting auto-generated ID: " + e.getMessage(), e);
+            // If we have an auto-increment primary key, set its value in the entity
+            if (primaryKeyField != null && primaryKeyField.getAnnotation(Column.class).isAutoIncrement()) {
+                primaryKeyField.setAccessible(true);
+                try {
+                    if (primaryKeyField.getType() == int.class || primaryKeyField.getType() == Integer.class) {
+                        primaryKeyField.set(entity, (int) id);
+                    } else if (primaryKeyField.getType() == long.class || primaryKeyField.getType() == Long.class) {
+                        primaryKeyField.set(entity, id);
                     }
+                } catch (IllegalAccessException e) {
+                    throw new SQLiteException("Error setting auto-generated ID: " + e.getMessage(), e);
                 }
             }
 
