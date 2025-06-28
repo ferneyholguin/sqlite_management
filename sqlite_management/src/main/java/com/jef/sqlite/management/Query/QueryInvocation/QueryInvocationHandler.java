@@ -12,7 +12,8 @@ import java.util.stream.Stream;
  * Manejador de invocación para consultas dinámicas.
  * Implementa InvocationHandler para interceptar llamadas a métodos en interfaces de consulta
  * y proporcionar implementaciones dinámicas basadas en el nombre del metodo.
- * Delega las operaciones a clases especializadas: QueryFindHandler para búsquedas y QuerySaveHandler para guardar.
+ * Delega las operaciones a clases especializadas: QueryFindHandler para búsquedas, 
+ * QuerySaveHandler para guardar y QueryUpdateHandler para actualizar.
  *
  * @param <T> El tipo de entidad sobre la que se realizan las consultas
  */
@@ -22,11 +23,12 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
     private final SQLiteManagement management;
     private final QueryFindHandler<T> findHandler;
     private final QuerySaveHandler<T> saveHandler;
+    private final QueryUpdateHandler<T> updateHandler;
 
     /**
      * Constructor para QueryInvocationHandler.
      * Inicializa el manejador con la clase de entidad y el gestor de base de datos.
-     * Crea instancias de los manejadores especializados para operaciones de búsqueda y guardado.
+     * Crea instancias de los manejadores especializados para operaciones de búsqueda, guardado y actualización.
      *
      * @param entityClass La clase de entidad asociada a la consulta
      * @param management El gestor de la base de datos SQLite
@@ -36,12 +38,16 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
         this.management = management;
         this.findHandler = new QueryFindHandler<>(entityClass, management);
         this.saveHandler = new QuerySaveHandler<>(entityClass, management);
+        this.updateHandler = new QueryUpdateHandler<>(entityClass, management);
     }
 
     /**
      * Metodo principal que intercepta todas las llamadas a métodos en la interfaz de consulta.
      * Analiza el nombre del metodo y los argumentos para determinar qué operación realizar.
-     * Distribuye las consultas a los manejadores especializados según el tipo de operación.
+     * Distribuye las consultas a los manejadores especializados según el tipo de operación:
+     * - Métodos que comienzan con "save" se dirigen a QuerySaveHandler
+     * - Métodos que comienzan con "find" se dirigen a QueryFindHandler
+     * - Métodos que comienzan con "updateBy" se dirigen a QueryUpdateHandler
      *
      * @param proxy El objeto proxy en el que se invocó el metodo
      * @param method El metodo invocado
@@ -109,7 +115,15 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
             return findHandler.createFindBy(method, argsString);
         else if (methodName.startsWith("findAllBy") && !methodName.matches("findAllBy\\w+OrderBy\\w+"))
             return findHandler.createFindAllBy(method, argsString);
+        else if (methodName.startsWith("updateBy")) {
+            if (args.length < 2 || args[0] == null)
+                throw new SQLiteException("Entity and where value are required for updateBy methods");
+
+            return updateHandler.updateByField(method, (T) args[0], new String[]{argsString[1]});
+        }
 
         throw new UnsupportedOperationException("Method not supported: " + methodName);
     }
+
+
 }
