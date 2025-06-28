@@ -1,23 +1,26 @@
-package com.jef.sqlite.management;
+package com.jef.sqlite.management.models;
 
 import com.jef.sqlite.management.interfaces.Column;
+import com.jef.sqlite.management.interfaces.Join;
 import com.jef.sqlite.management.interfaces.Table;
 
-@Table(name = "lines")
-public class Line {
+@Table(name = "products")
+public class Product {
 
     @Column(name = "id", isPrimaryKey = true, isAutoIncrement = true)
     private int id;
-
     @Column(name = "name")
     private String name;
+    @Join(targetName = "line", relationShip = Line.class, source = "id")
+    private Line line;
 
-    public Line() {
+    public Product() {
     }
 
-    public Line(int id, String name) {
+    public Product(int id, String name, Line line) {
         this.id = id;
         this.name = name;
+        this.line = line;
     }
 
     public int getId() {
@@ -36,6 +39,12 @@ public class Line {
         this.name = name;
     }
 
+    public Line getLine() {
+        return line;
+    }
 
+    public void setLine(Line line) {
+        this.line = line;
+    }
 
 }

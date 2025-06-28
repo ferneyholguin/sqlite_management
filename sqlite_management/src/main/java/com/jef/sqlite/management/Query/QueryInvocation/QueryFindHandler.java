@@ -88,7 +88,7 @@ public class QueryFindHandler<T> {
      * @return Una lista de entidades que coinciden con el criterio
      * @throws SQLiteException Si el campo no existe o hay errores en la consulta
      */
-    public Object createFindAllBy(Method method, String[] args) {
+    public List<T> createFindAllBy(Method method, String[] args) {
         String methodName = method.getName();
 
         String field = methodName.substring("findAllBy".length());
@@ -114,14 +114,25 @@ public class QueryFindHandler<T> {
 
     /**
      * Retrieves all entities ordered by a specific field.
+     * The direction (ASC or DESC) is determined from the method name.
      * 
      * @param method The method being invoked
-     * @param direction The sort direction ("asc" or "desc")
      * @return A list of all entities ordered by the specified field
      * @throws SQLiteException If the field doesn't exist or there's an error in the query
      */
-    public List<T> findAllOrderBy(Method method, String direction) {
+    public List<T> findAllOrderBy(Method method) {
         String methodName = method.getName();
+
+        // Extract the direction from the method name
+        String direction = "ASC"; // Default to ASC
+        if (methodName.endsWith("Desc")) {
+            direction = "DESC";
+            methodName = methodName.substring(0, methodName.length() - 4); // Remove "Desc"
+        } else if (methodName.endsWith("Asc")) {
+            methodName = methodName.substring(0, methodName.length() - 3); // Remove "Asc"
+        }
+
+        // Extract the field name
         String field = methodName.substring("findAllOrderBy".length());
         String fieldLower = Character.toLowerCase(field.charAt(0)) + field.substring(1);
 
@@ -129,22 +140,31 @@ public class QueryFindHandler<T> {
         if (column == null)
             throw new SQLiteException("Field not found: " + fieldLower);
 
-        String dir = direction.equalsIgnoreCase("desc") ? "DESC" : "ASC";
-        String sql = "SELECT * FROM " + tableName + " ORDER BY " + column + " " + dir;
+        String sql = "SELECT * FROM " + tableName + " ORDER BY " + column + " " + direction;
 
         return queryList(sql, new String[0]);
     }
 
     /**
      * Retrieves all entities that match a specific field value, ordered by another field.
+     * The direction (ASC or DESC) is determined from the method name.
      * 
      * @param method The method being invoked
-     * @param args The arguments passed to the method (field value and sort direction)
+     * @param args The arguments passed to the method (field value only)
      * @return A list of entities that match the criteria, ordered as specified
      * @throws SQLiteException If the fields don't exist or there's an error in the query
      */
     public List<T> findAllByFieldOrderByField(Method method, String[] args) {
         String methodName = method.getName();
+
+        // Extract the direction from the method name
+        String direction = "ASC"; // Default to ASC
+        if (methodName.endsWith("Desc")) {
+            direction = "DESC";
+            methodName = methodName.substring(0, methodName.length() - 4); // Remove "Desc"
+        } else if (methodName.endsWith("Asc")) {
+            methodName = methodName.substring(0, methodName.length() - 3); // Remove "Asc"
+        }
 
         // Extract the field names from the method name
         String[] parts = methodName.split("OrderBy");
@@ -166,9 +186,6 @@ public class QueryFindHandler<T> {
         String orderColumn = fieldToColumn.get(orderFieldLower);
         if (orderColumn == null)
             throw new SQLiteException("Order field not found: " + orderFieldLower);
-
-        // Determine sort direction
-        String direction = args[1].equalsIgnoreCase("desc") ? "DESC" : "ASC";
 
         // Build the SQL query
         String sql = "SELECT * FROM " + tableName + " WHERE " + whereColumn + " = ? ORDER BY " + orderColumn + " " + direction;

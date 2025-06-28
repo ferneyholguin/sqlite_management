@@ -97,6 +97,7 @@ public abstract class SQLiteTable<T> {
                 .append(table.name())
                 .append(" (\n");
 
+        // Generate column definitions
         String instructionsCreateColumns = columnFields.stream()
                 .map(field -> {
                     if (field.isAnnotationPresent(Column.class))
@@ -109,6 +110,18 @@ public abstract class SQLiteTable<T> {
                 .collect(Collectors.joining(", \n"));
 
         createTableSQL.append(instructionsCreateColumns);
+
+        // Collect and add foreign key constraints
+        List<String> foreignKeyConstraints = columnFields.stream()
+                .filter(field -> field.isAnnotationPresent(Join.class))
+                .map(this::getForeignKeyConstraint)
+                .filter(constraint -> !constraint.isEmpty())
+                .collect(Collectors.toList());
+
+        if (!foreignKeyConstraints.isEmpty()) {
+            createTableSQL.append(",\n");
+            createTableSQL.append(String.join(",\n", foreignKeyConstraints));
+        }
 
         createTableSQL.append("\n);");
 
@@ -227,19 +240,30 @@ public abstract class SQLiteTable<T> {
             }
         }
 
+        return instruction.toString();
+    }
+
+    /**
+     * Genera la restricción de clave foránea para un campo anotado con @Join.
+     * 
+     * @param field El campo que representa la relación
+     * @return La restricción de clave foránea o una cadena vacía si no aplica
+     */
+    private String getForeignKeyConstraint(Field field) {
+        if (!field.isAnnotationPresent(Join.class)) {
+            return "";
+        }
+
+        Join join = field.getAnnotation(Join.class);
+
         // Add foreign key constraint
         if (join.relationShip().isAnnotationPresent(Table.class)) {
             Table targetTable = join.relationShip().getAnnotation(Table.class);
-            instruction.append(", FOREIGN KEY (\"")
-                    .append(join.targetName())
-                    .append("\") REFERENCES \"")
-                    .append(targetTable.name())
-                    .append("\" (\"")
-                    .append(join.source())
-                    .append("\")");
+            return "FOREIGN KEY (\"" + join.targetName() + "\") REFERENCES \"" + 
+                   targetTable.name() + "\" (\"" + join.source() + "\")";
         }
 
-        return instruction.toString();
+        return "";
     }
 
 
@@ -251,6 +275,12 @@ public abstract class SQLiteTable<T> {
      * @throws SQLiteException Si el tipo no es compatible con SQLite
      */
     private String getTypeColumn(Class<?> type) {
+        // If the type is a custom class (not a primitive or standard Java type),
+        // we'll use INTEGER as the type for the foreign key
+        if (type.getPackage() != null && type.getPackage().getName().startsWith("com.jef.sqlite.management")) {
+            return "INTEGER";
+        }
+
         String typeName = type.getSimpleName().toLowerCase();
         switch (typeName) {
             case "string":
@@ -369,12 +399,12 @@ public abstract class SQLiteTable<T> {
         for (Field field : clazz.getDeclaredFields()) 
             if (field.isAnnotationPresent(Column.class)) {
                 Column column = field.getAnnotation(Column.class);
-                
+
                 if (column.name().equals(columnName))
                     return field;
-                
+
             }
-        
+
         return null;
     }
 

@@ -1,11 +1,15 @@
-package com.jef.sqlite.management;
+package com.jef.sqlite.management.tests;
 
 import android.content.Context;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
-import com.jef.sqlite.management.Query.QueryFactory;
+import com.jef.sqlite.management.Management;
+import com.jef.sqlite.management.models.Line;
+import com.jef.sqlite.management.models.Product;
+import com.jef.sqlite.management.tables.LineTable;
+import com.jef.sqlite.management.tables.TableProducts;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -93,34 +97,5 @@ public class ProductLineTest {
         assertEquals("Line name should match", "Test Line", product.getLine().getName());
 
         System.out.println("Successfully tested join relationship between Product and Line");
-    }
-
-    /**
-     * Table class for Line entity
-     */
-    public static class LineTable extends SQLiteTable<Line> {
-        public LineTable(Context context) {
-            super(new Management(context));
-        }
-
-        private LineQuery query() {
-            return QueryFactory.create(LineQuery.class, Line.class, getManagement());
-        }
-
-        public List<Line> getAllLines() {
-            return query().findAll();
-        }
-
-        public Line saveLine(Line line) {
-            return query().save(line);
-        }
-    }
-
-    /**
-     * Query interface for Line entity
-     */
-    public interface LineQuery {
-        List<Line> findAll();
-        Line save(Line line);
     }
 }

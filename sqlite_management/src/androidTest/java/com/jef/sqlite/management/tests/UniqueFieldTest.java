@@ -1,14 +1,16 @@
-package com.jef.sqlite.management;
+package com.jef.sqlite.management.tests;
 
 import android.content.Context;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import com.jef.sqlite.management.Management;
+import com.jef.sqlite.management.SQLiteTable;
+import com.jef.sqlite.management.Query.QueryFactory;
 import com.jef.sqlite.management.interfaces.Column;
 import com.jef.sqlite.management.interfaces.Join;
 import com.jef.sqlite.management.interfaces.Table;
-import com.jef.sqlite.management.Query.QueryFactory;
 import com.jef.sqlite.management.exceptions.SQLiteException;
 
 import org.junit.Before;
@@ -37,126 +39,105 @@ public class UniqueFieldTest {
     private void setupTestData() {
         // Create and save a category
         CategoryTable categoryTable = new CategoryTable(appContext);
-
-        // Check if the category already exists
-        List<Category> existingCategories = categoryTable.getAllCategories();
-        Category savedCategory;
-
-        if (!existingCategories.isEmpty()) {
-            // Use the existing category
-            savedCategory = existingCategories.get(0);
-            System.out.println("[DEBUG_LOG] Using existing category ID: " + savedCategory.getId());
-            System.out.println("[DEBUG_LOG] Using existing category name: " + savedCategory.getName());
-        } else {
-            // Create a new category
-            Category category = new Category();
-            category.setName("Test Category");
-            savedCategory = categoryTable.saveCategory(category);
-            System.out.println("[DEBUG_LOG] Saved new category ID: " + savedCategory.getId());
-            System.out.println("[DEBUG_LOG] Saved new category name: " + savedCategory.getName());
-        }
+        Category category = new Category();
+        category.setId(1);
+        category.setName("Test Category");
+        Category savedCategory = categoryTable.saveCategory(category);
+        System.out.println("[DEBUG_LOG] Saved category ID: " + savedCategory.getId());
+        System.out.println("[DEBUG_LOG] Saved category name: " + savedCategory.getName());
 
         // Create and save a product with unique code
         ProductWithUniqueCodeTable productTable = new ProductWithUniqueCodeTable(appContext);
+        ProductWithUniqueCode product = new ProductWithUniqueCode();
+        product.setName("Test Product");
+        product.setCode("UNIQUE123");
+        product.setCategoryId(1);
 
-        // Check if a product with this code already exists
-        List<ProductWithUniqueCode> existingProducts = productTable.getAllProducts();
-        boolean productExists = false;
+        // Create and set the category object directly
+        Category categoryForProduct = new Category();
+        categoryForProduct.setId(1);
+        categoryForProduct.setName("Test Category");
+        product.setCategory(categoryForProduct);
 
-        for (ProductWithUniqueCode p : existingProducts) {
-            if ("UNIQUE001".equals(p.getCode())) {
-                productExists = true;
-                System.out.println("[DEBUG_LOG] Product with code UNIQUE001 already exists");
-                break;
-            }
-        }
+        ProductWithUniqueCode savedProduct = productTable.saveProduct(product);
+        System.out.println("[DEBUG_LOG] Saved product ID: " + savedProduct.getId());
+        System.out.println("[DEBUG_LOG] Saved product name: " + savedProduct.getName());
+        System.out.println("[DEBUG_LOG] Saved product code: " + savedProduct.getCode());
+        System.out.println("[DEBUG_LOG] Saved product category ID: " + savedProduct.getCategoryId());
 
-        if (!productExists) {
-            ProductWithUniqueCode product = new ProductWithUniqueCode();
-            product.setName("Test Product");
-            product.setCode("UNIQUE001");
-            product.setCategoryId(savedCategory.getId());
+        // Create and save a product with unique category
+        ProductWithUniqueCategoryTable uniqueCategoryTable = new ProductWithUniqueCategoryTable(appContext);
+        ProductWithUniqueCategory uniqueCategoryProduct = new ProductWithUniqueCategory();
+        uniqueCategoryProduct.setName("Test Product with Unique Category");
+        uniqueCategoryProduct.setCategoryId(1);
 
-            // Set the category object directly
-            product.setCategory(savedCategory);
+        // Create and set the category object directly
+        Category categoryForUniqueProduct = new Category();
+        categoryForUniqueProduct.setId(1);
+        categoryForUniqueProduct.setName("Test Category");
+        uniqueCategoryProduct.setCategory(categoryForUniqueProduct);
 
-            ProductWithUniqueCode savedProduct = productTable.saveProduct(product);
-            System.out.println("[DEBUG_LOG] Saved product ID: " + savedProduct.getId());
-            System.out.println("[DEBUG_LOG] Saved product name: " + savedProduct.getName());
-            System.out.println("[DEBUG_LOG] Saved product code: " + savedProduct.getCode());
-        }
+        ProductWithUniqueCategory savedUniqueProduct = uniqueCategoryTable.saveProduct(uniqueCategoryProduct);
+        System.out.println("[DEBUG_LOG] Saved unique product ID: " + savedUniqueProduct.getId());
+        System.out.println("[DEBUG_LOG] Saved unique product name: " + savedUniqueProduct.getName());
+        System.out.println("[DEBUG_LOG] Saved unique product category ID: " + savedUniqueProduct.getCategoryId());
     }
 
     @Test
     public void testUniqueColumnConstraint() {
-        // Create a product table
+        // Create a product with the same unique code as the one in setupTestData
         ProductWithUniqueCodeTable productTable = new ProductWithUniqueCodeTable(appContext);
-
-        // Create a product with the same unique code as an existing product
         ProductWithUniqueCode product = new ProductWithUniqueCode();
         product.setName("Another Product");
-        product.setCode("UNIQUE001"); // This code already exists
+        product.setCode("UNIQUE123"); // Same code as the product in setupTestData
+        product.setCategoryId(1);
 
-        // Try to save the product - should throw an exception due to unique constraint
+        // Attempt to save the product with the duplicate code
         try {
             productTable.saveProduct(product);
             fail("Expected SQLiteException due to unique constraint violation");
         } catch (SQLiteException e) {
             // Expected exception
-            System.out.println("[DEBUG_LOG] Caught expected exception: " + e.getMessage());
-            assertTrue(e.getMessage().contains("UNIQUE constraint failed") || 
-                       e.getMessage().contains("column code is not unique"));
+            assertTrue("Exception message should mention UNIQUE constraint", 
+                    e.getMessage().contains("UNIQUE constraint failed") || 
+                    e.getMessage().contains("column code is not unique"));
         }
     }
 
     @Test
     public void testUniqueJoinConstraint() {
-        // Create a category table
-        CategoryTable categoryTable = new CategoryTable(appContext);
+        // Create a product with the same category as the one in setupTestData
+        // This should fail because the category_id column has a unique constraint
+        ProductWithUniqueCategoryTable uniqueCategoryTable = new ProductWithUniqueCategoryTable(appContext);
+        ProductWithUniqueCategory uniqueCategoryProduct = new ProductWithUniqueCategory();
+        uniqueCategoryProduct.setName("Another Product with Unique Category");
+        uniqueCategoryProduct.setCategoryId(1); // Same category ID as the product in setupTestData
 
-        // Get the existing category
-        List<Category> categories = categoryTable.getAllCategories();
-        assertFalse("Should find at least one category", categories.isEmpty());
-        Category existingCategory = categories.get(0);
+        // Create and set the category object directly
+        Category categoryForUniqueProduct = new Category();
+        categoryForUniqueProduct.setId(1);
+        categoryForUniqueProduct.setName("Test Category");
+        uniqueCategoryProduct.setCategory(categoryForUniqueProduct);
 
-        // Create a product table
-        ProductWithUniqueCategoryTable productTable = new ProductWithUniqueCategoryTable(appContext);
-
-        // Create a product with a unique category
-        ProductWithUniqueCategory product1 = new ProductWithUniqueCategory();
-        product1.setName("Product with Unique Category");
-        product1.setCategoryId(existingCategory.getId());
-        product1.setCategory(existingCategory);
-
-        // Save the first product
-        ProductWithUniqueCategory savedProduct1 = productTable.saveProduct(product1);
-        System.out.println("[DEBUG_LOG] Saved product 1 ID: " + savedProduct1.getId());
-
-        // Create another product with the same category
-        ProductWithUniqueCategory product2 = new ProductWithUniqueCategory();
-        product2.setName("Another Product with Same Category");
-        product2.setCategoryId(existingCategory.getId());
-        product2.setCategory(existingCategory);
-
-        // Try to save the second product - should throw an exception due to unique constraint
+        // Attempt to save the product with the duplicate category
         try {
-            productTable.saveProduct(product2);
-            fail("Expected SQLiteException due to unique join constraint violation");
+            uniqueCategoryTable.saveProduct(uniqueCategoryProduct);
+            fail("Expected SQLiteException due to unique constraint violation");
         } catch (SQLiteException e) {
             // Expected exception
-            System.out.println("[DEBUG_LOG] Caught expected exception: " + e.getMessage());
-            assertTrue(e.getMessage().contains("UNIQUE constraint failed") || 
-                       e.getMessage().contains("column category_id is not unique"));
+            assertTrue("Exception message should mention UNIQUE constraint", 
+                    e.getMessage().contains("UNIQUE constraint failed") || 
+                    e.getMessage().contains("column category_id is not unique"));
         }
     }
 
     // Entity classes for testing
-    @Table(name = "categories_unique")
+    @Table(name = "categories")
     public static class Category {
-        @Column(name = "id", isPrimaryKey = true, isAutoIncrement = true)
+        @Column(name = "id", isPrimaryKey = true)
         private int id;
 
-        @Column(name = "name", isUnique = true)
+        @Column(name = "name")
         private String name;
 
         public Category() {}
@@ -186,13 +167,14 @@ public class UniqueFieldTest {
         @Column(name = "name")
         private String name;
 
+        // This column has a unique constraint
         @Column(name = "code", isUnique = true)
         private String code;
 
         @Column(name = "category_id")
         private int categoryId;
 
-        @Join(targetName = "id", relationShip = Category.class, source = "category_id")
+        @Join(targetName = "category_id", relationShip = Category.class, source = "id")
         private Category category;
 
         public ProductWithUniqueCode() {}
@@ -249,7 +231,8 @@ public class UniqueFieldTest {
         @Column(name = "category_id")
         private int categoryId;
 
-        @Join(targetName = "id", relationShip = Category.class, source = "category_id", isUnique = true)
+        // This join has a unique constraint
+        @Join(targetName = "category_id", relationShip = Category.class, source = "id", isUnique = true)
         private Category category;
 
         public ProductWithUniqueCategory() {}
@@ -287,7 +270,7 @@ public class UniqueFieldTest {
         }
     }
 
-    // Table classes for testing
+    // Table classes
     public static class CategoryTable extends SQLiteTable<Category> {
         public CategoryTable(Context context) {
             super(new Management(context));

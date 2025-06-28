@@ -1,10 +1,14 @@
-package com.jef.sqlite.management;
+package com.jef.sqlite.management.tables;
 
 import android.content.Context;
 
 import androidx.annotation.NonNull;
 
+import com.jef.sqlite.management.Management;
+import com.jef.sqlite.management.SQLiteTable;
 import com.jef.sqlite.management.Query.QueryFactory;
+import com.jef.sqlite.management.models.Line;
+import com.jef.sqlite.management.queries.LineQuery;
 
 import java.util.List;
 
@@ -36,13 +40,5 @@ public class LineTable extends SQLiteTable<Line> {
      */
     public Line saveLine(Line line) {
         return query().save(line);
-    }
-
-    /**
-     * Query interface for Line entity
-     */
-    public interface LineQuery {
-        List<Line> findAll();
-        Line save(Line line);
     }
 }

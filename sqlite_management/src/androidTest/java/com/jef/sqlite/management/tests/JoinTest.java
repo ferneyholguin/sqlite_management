@@ -1,14 +1,19 @@
-package com.jef.sqlite.management;
+package com.jef.sqlite.management.tests;
 
 import android.content.Context;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import com.jef.sqlite.management.Management;
+import com.jef.sqlite.management.SQLiteTable;
+import com.jef.sqlite.management.Query.QueryFactory;
 import com.jef.sqlite.management.interfaces.Column;
 import com.jef.sqlite.management.interfaces.Join;
 import com.jef.sqlite.management.interfaces.Table;
-import com.jef.sqlite.management.Query.QueryFactory;
+import com.jef.sqlite.management.models.Line;
+import com.jef.sqlite.management.tables.LineTable;
+import com.jef.sqlite.management.tables.TableProducts;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -27,6 +32,10 @@ public class JoinTest {
     @Before
     public void setup() {
         appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
+
+        // Delete the database file to ensure a clean state for each test
+        appContext.deleteDatabase("management");
+
         management = new Management(appContext);
 
         // Create test data
@@ -48,17 +57,20 @@ public class JoinTest {
 
         // Create and save a Line object
         Line line = new Line();
+        line.setId(0); // Explicitly set ID to 0 to ensure it's auto-incremented
         line.setName("Test Line");
         Line savedLine = lineTable.saveLine(line);
+        System.out.println("[DEBUG_LOG] Saved line ID: " + savedLine.getId());
+        System.out.println("[DEBUG_LOG] Saved line name: " + savedLine.getName());
 
         // Create and save a product
         TableProducts tableProducts = new TableProducts(appContext);
-        Product product = new Product();
+        com.jef.sqlite.management.models.Product product = new com.jef.sqlite.management.models.Product();
         product.setName("Test Product with Category");
 
         // Set the saved Line object on the product
         product.setLine(savedLine);
-        Product savedProduct = tableProducts.saveProduct(product);
+        com.jef.sqlite.management.models.Product savedProduct = tableProducts.saveProduct(product);
         System.out.println("[DEBUG_LOG] Saved product ID: " + savedProduct.getId());
 
         // Create and save a product with category
@@ -160,7 +172,8 @@ public class JoinTest {
         @Column(name = "category_id")
         private int categoryId;
 
-        @Join(targetName = "id", relationShip = Category.class, source = "category_id", defaultValue = "0", permitNull = false)
+        // The Join annotation uses the category_id column to establish the relationship with the Category table
+        @Join(targetName = "category_id", relationShip = Category.class, source = "id", defaultValue = "0", permitNull = false)
         private Category category;
 
         public ProductWithCategory() {}

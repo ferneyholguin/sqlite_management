@@ -5,6 +5,11 @@ import android.content.Context;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import com.jef.sqlite.management.models.Line;
+import com.jef.sqlite.management.models.Product;
+import com.jef.sqlite.management.tables.LineTable;
+import com.jef.sqlite.management.tables.TableProducts;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 

@@ -23,11 +23,12 @@ import java.util.Map;
  * @param <T> The entity type being saved
  */
 public class QuerySaveHandler<T> {
-    
+
     private final Class<T> entityClass;
     private final SQLiteManagement management;
     private final String tableName;
     private final Map<String, String> fieldToColumn;
+    private final Map<String, Object> foreignKeyValues = new HashMap<>();
 
     /**
      * Constructor for QuerySaveHandler
@@ -97,10 +98,13 @@ public class QuerySaveHandler<T> {
                     }
                 }
 
-                // Find the source field in the current entity
-                Field sourceField = findFieldByColumnName(entityClass, join.source());
-                if (sourceField == null)
-                    throw new SQLiteException("Source field not found: " + join.source());
+                // For a Join, we need to create or find a field to store the foreign key value
+                // The targetName is the name of the column in the current table that stores the reference
+                Field sourceField = findFieldByColumnName(entityClass, join.targetName());
+                if (sourceField == null) {
+                    // If there's no explicit field for the foreign key, we'll use the Join field itself
+                    sourceField = field;
+                }
 
                 // Find the target field (primary key) in the relationship class
                 Class<?> relationshipClass = join.relationShip();
@@ -108,36 +112,49 @@ public class QuerySaveHandler<T> {
                 if (targetField == null)
                     throw new SQLiteException("Primary key field not found in relationship class: " + relationshipClass.getName());
 
-                // Save the related entity to ensure it has a valid ID
-                // This is done by creating a dynamic proxy for the relationship class
-                // and calling its save method
-                try {
-                    // Create a dynamic proxy for the relationship class
-                    Object relationshipProxy = java.lang.reflect.Proxy.newProxyInstance(
-                            relationshipClass.getClassLoader(),
-                            new Class<?>[]{DynamicQuery.class},
-                            new QueryInvocationHandler<>(relationshipClass, management)
-                    );
+                // Get the primary key value from the related entity
+                // If it's already set, we don't need to save it again
+                targetField.setAccessible(true);
+                Object targetValue = targetField.get(relatedEntity);
 
-                    // Call the save method on the proxy
-                    Method saveMethod = DynamicQuery.class.getMethod("save", Object.class);
-                    Object savedRelatedEntity = saveMethod.invoke(relationshipProxy, relatedEntity);
+                // Only save the related entity if it doesn't have a valid ID yet
+                if (targetValue == null || isDefaultPrimaryKeyValue(targetValue)) {
+                    // Save the related entity to ensure it has a valid ID
+                    // This is done by creating a dynamic proxy for the relationship class
+                    // and calling its save method
+                    try {
+                        // Create a dynamic proxy for the relationship class
+                        Object relationshipProxy = java.lang.reflect.Proxy.newProxyInstance(
+                                relationshipClass.getClassLoader(),
+                                new Class<?>[]{DynamicQuery.class},
+                                new QueryInvocationHandler<>(relationshipClass, management)
+                        );
 
-                    // Update the related entity in the main entity
-                    field.set(entity, savedRelatedEntity);
+                        // Call the save method on the proxy
+                        Method saveMethod = DynamicQuery.class.getMethod("save", Object.class);
+                        Object savedRelatedEntity = saveMethod.invoke(relationshipProxy, relatedEntity);
 
-                    // Get the primary key value from the saved related entity
-                    targetField.setAccessible(true);
-                    Object targetValue = targetField.get(savedRelatedEntity);
+                        // Update the related entity in the main entity
+                        field.set(entity, savedRelatedEntity);
 
+                        // Get the primary key value from the saved related entity
+                        targetValue = targetField.get(savedRelatedEntity);
+                    } catch (Exception e) {
+                        throw new SQLiteException("Error saving related entity: " + e.getMessage(), e);
+                    }
+                }
+
+                // If the source field is the Join field itself, we can't set the foreign key value directly
+                // because it's of a different type. Instead, we'll store it in the foreignKeyValues map.
+                if (sourceField == field) {
+                    // Store the foreign key value in the map using the targetName as the key
+                    foreignKeyValues.put(join.targetName(), targetValue);
+                    System.out.println("[DEBUG_LOG] Storing foreign key value: " + targetValue + " for column: " + join.targetName());
+                } else {
                     // Set the foreign key value in the source field
                     sourceField.setAccessible(true);
                     sourceField.set(entity, targetValue);
-
-                    // Log the foreign key value for debugging
                     System.out.println("[DEBUG_LOG] Setting foreign key value: " + targetValue + " in field: " + sourceField.getName());
-                } catch (Exception e) {
-                    throw new SQLiteException("Error saving related entity: " + e.getMessage(), e);
                 }
             } catch (IllegalAccessException e) {
                 throw new SQLiteException("Error accessing field " + field.getName() + ": " + e.getMessage(), e);
@@ -191,6 +208,29 @@ public class QuerySaveHandler<T> {
                 }
             } catch (IllegalAccessException e) {
                 throw new SQLiteException("Error accessing field " + field.getName() + ": " + e.getMessage(), e);
+            }
+        }
+
+        // Add foreign key values from the map
+        for (Map.Entry<String, Object> entry : foreignKeyValues.entrySet()) {
+            String columnName = entry.getKey();
+            Object value = entry.getValue();
+
+            // Add the value to ContentValues based on its type
+            if (value == null) {
+                values.putNull(columnName);
+            } else if (value instanceof String) {
+                values.put(columnName, (String) value);
+            } else if (value instanceof Integer) {
+                values.put(columnName, (Integer) value);
+            } else if (value instanceof Long) {
+                values.put(columnName, (Long) value);
+            } else if (value instanceof Double) {
+                values.put(columnName, (Double) value);
+            } else if (value instanceof Float) {
+                values.put(columnName, (Float) value);
+            } else if (value instanceof Boolean) {
+                values.put(columnName, ((Boolean) value) ? 1 : 0);
             }
         }
 

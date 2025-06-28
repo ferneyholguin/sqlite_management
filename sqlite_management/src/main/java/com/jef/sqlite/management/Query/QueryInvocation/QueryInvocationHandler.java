@@ -71,9 +71,13 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
         // Operaciones de búsqueda
         if (methodName.equals("findAll")) {
             return findHandler.findAll();
-        } else if (methodName.startsWith("findAllOrderBy")) {
+        } else if (methodName.matches("findAllOrderBy\\w+(Asc|Desc)?")) {
+            // Handle methods like findAllOrderByNameAsc or findAllOrderByNameDesc
+            return findHandler.findAllOrderBy(method);
+        } else if (methodName.matches("findAllBy\\w+OrderBy\\w+(Asc|Desc)?")) {
+            // Handle methods like findAllByNameOrderByIdAsc or findAllByNameOrderByIdDesc
             if (args == null || args.length == 0)
-                throw new SQLiteException("Sort direction is required for findAllOrderBy methods");
+                throw new SQLiteException("Where value is required for findAllBy[Field]OrderBy[Field] methods");
 
             String[] argsString = Stream.of(args)
                     .filter(Objects::nonNull)
@@ -81,21 +85,7 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
                     .toArray(String[]::new);
 
             if (argsString.length == 0)
-                throw new SQLiteException("Sort direction is required for findAllOrderBy methods");
-
-            return findHandler.findAllOrderBy(method, argsString[0]);
-        } else if (methodName.matches("findAllBy\\w+OrderBy\\w+")) {
-            // Handle methods like findAllByNameOrderById
-            if (args == null || args.length < 2)
-                throw new SQLiteException("Where value and sort direction are required for findAllBy[Field]OrderBy[Field] methods");
-
-            String[] argsString = Stream.of(args)
-                    .filter(Objects::nonNull)
-                    .map(String::valueOf)
-                    .toArray(String[]::new);
-
-            if (argsString.length < 2)
-                throw new SQLiteException("Where value and sort direction are required for findAllBy[Field]OrderBy[Field] methods");
+                throw new SQLiteException("Where value is required for findAllBy[Field]OrderBy[Field] methods");
 
             return findHandler.findAllByFieldOrderByField(method, argsString);
         }
@@ -120,6 +110,10 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
                 throw new SQLiteException("Entity and where value are required for updateBy methods");
 
             return updateHandler.updateByField(method, (T) args[0], new String[]{argsString[1]});
+        }
+        else if (methodName.startsWith("update") && methodName.contains("Where")) {
+            // Handle methods like updateStateWhereLocationAndCountry
+            return updateHandler.updateFieldWhereConditions(method, args);
         }
 
         throw new UnsupportedOperationException("Method not supported: " + methodName);

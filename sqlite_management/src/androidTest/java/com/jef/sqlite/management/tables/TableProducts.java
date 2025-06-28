@@ -1,16 +1,18 @@
-package com.jef.sqlite.management;
+package com.jef.sqlite.management.tables;
 
 import android.content.Context;
 
 import androidx.annotation.NonNull;
 
+import com.jef.sqlite.management.Management;
+import com.jef.sqlite.management.SQLiteTable;
 import com.jef.sqlite.management.Query.QueryFactory;
+import com.jef.sqlite.management.models.Product;
+import com.jef.sqlite.management.queries.ProductQuery;
 
 import java.util.List;
 
-
 public class TableProducts extends SQLiteTable<Product>{
-
 
     public TableProducts(@NonNull Context context) {
         super(new Management(context));
@@ -38,7 +40,7 @@ public class TableProducts extends SQLiteTable<Product>{
      * @return a list of all products ordered by name
      */
     public List<Product> getAllProductsOrderedByName(boolean ascending) {
-        return query().findAllOrderByName(ascending ? "ASC" : "DESC");
+        return ascending ? query().findAllOrderByNameAsc() : query().findAllOrderByNameDesc();
     }
 
     /**
@@ -47,9 +49,8 @@ public class TableProducts extends SQLiteTable<Product>{
      * @return a list of all products ordered by id
      */
     public List<Product> getAllProductsOrderedById(boolean ascending) {
-        return query().findAllOrderById(ascending ? "ASC" : "DESC");
+        return ascending ? query().findAllOrderByIdAsc() : query().findAllOrderByIdDesc();
     }
-
 
     /**
      * Get all products with a specific name, ordered by id
@@ -58,7 +59,7 @@ public class TableProducts extends SQLiteTable<Product>{
      * @return a list of products with the given name, ordered by id
      */
     public List<Product> getProductsByNameOrderedById(String name, boolean ascending) {
-        return query().findAllByNameOrderById(name, ascending ? "ASC" : "DESC");
+        return ascending ? query().findAllByNameOrderByIdAsc(name) : query().findAllByNameOrderByIdDesc(name);
     }
 
     /**
