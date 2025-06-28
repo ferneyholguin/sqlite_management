@@ -237,26 +237,31 @@ public class QuerySaveHandler<T> {
         // Perform the database operation
         SQLiteDatabase db = management.getWritableDatabase();
         try {
-            // Insert new entity
-            long id = db.insert(tableName, null, values);
-            if (id == -1)
-                throw new SQLiteException("Failed to insert entity into table " + tableName);
+            try {
+                // Insert new entity
+                long id = db.insert(tableName, null, values);
+                if (id == -1)
+                    throw new SQLiteException("Failed to insert entity into table " + tableName);
 
-            // If we have an auto-increment primary key, set its value in the entity
-            if (primaryKeyField != null && primaryKeyField.getAnnotation(Column.class).isAutoIncrement()) {
-                primaryKeyField.setAccessible(true);
-                try {
-                    if (primaryKeyField.getType() == int.class || primaryKeyField.getType() == Integer.class) {
-                        primaryKeyField.set(entity, (int) id);
-                    } else if (primaryKeyField.getType() == long.class || primaryKeyField.getType() == Long.class) {
-                        primaryKeyField.set(entity, id);
+                // If we have an auto-increment primary key, set its value in the entity
+                if (primaryKeyField != null && primaryKeyField.getAnnotation(Column.class).isAutoIncrement()) {
+                    primaryKeyField.setAccessible(true);
+                    try {
+                        if (primaryKeyField.getType() == int.class || primaryKeyField.getType() == Integer.class) {
+                            primaryKeyField.set(entity, (int) id);
+                        } else if (primaryKeyField.getType() == long.class || primaryKeyField.getType() == Long.class) {
+                            primaryKeyField.set(entity, id);
+                        }
+                    } catch (IllegalAccessException e) {
+                        throw new SQLiteException("Error setting auto-generated ID: " + e.getMessage(), e);
                     }
-                } catch (IllegalAccessException e) {
-                    throw new SQLiteException("Error setting auto-generated ID: " + e.getMessage(), e);
                 }
-            }
 
-            return entity;
+                return entity;
+            } catch (android.database.sqlite.SQLiteException e) {
+                // Wrap Android's SQLiteException in our own SQLiteException
+                throw new SQLiteException("SQLite error: " + e.getMessage(), e);
+            }
         } finally {
             db.close();
         }

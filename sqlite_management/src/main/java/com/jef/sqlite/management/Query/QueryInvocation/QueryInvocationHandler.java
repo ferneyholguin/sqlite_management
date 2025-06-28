@@ -60,24 +60,39 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
     public Object invoke(Object proxy, Method method, Object[] args) {
         String methodName = method.getName();
 
-        // Operaciones de guardado
-        if (methodName.equals("save")) {
-            if (args == null || args.length == 0 || args[0] == null)
-                throw new SQLiteException("Entity is required for save method");
+        try {
+            // Operaciones de guardado
+            if (methodName.equals("save")) {
+                if (args == null || args.length == 0 || args[0] == null)
+                    throw new SQLiteException("Entity is required for save method");
 
-            return saveHandler.save((T) args[0]);
-        }
+                return saveHandler.save((T) args[0]);
+            }
 
-        // Operaciones de búsqueda
-        if (methodName.equals("findAll")) {
-            return findHandler.findAll();
-        } else if (methodName.matches("findAllOrderBy\\w+(Asc|Desc)?")) {
-            // Handle methods like findAllOrderByNameAsc or findAllOrderByNameDesc
-            return findHandler.findAllOrderBy(method);
-        } else if (methodName.matches("findAllBy\\w+OrderBy\\w+(Asc|Desc)?")) {
-            // Handle methods like findAllByNameOrderByIdAsc or findAllByNameOrderByIdDesc
+            // Operaciones de búsqueda
+            if (methodName.equals("findAll")) {
+                return findHandler.findAll();
+            } else if (methodName.matches("findAllOrderBy\\w+(Asc|Desc)?")) {
+                // Handle methods like findAllOrderByNameAsc or findAllOrderByNameDesc
+                return findHandler.findAllOrderBy(method);
+            } else if (methodName.matches("findAllBy\\w+OrderBy\\w+(Asc|Desc)?")) {
+                // Handle methods like findAllByNameOrderByIdAsc or findAllByNameOrderByIdDesc
+                if (args == null || args.length == 0)
+                    throw new SQLiteException("Where value is required for findAllBy[Field]OrderBy[Field] methods");
+
+                String[] argsString = Stream.of(args)
+                        .filter(Objects::nonNull)
+                        .map(String::valueOf)
+                        .toArray(String[]::new);
+
+                if (argsString.length == 0)
+                    throw new SQLiteException("Where value is required for findAllBy[Field]OrderBy[Field] methods");
+
+                return findHandler.findAllByFieldOrderByField(method, argsString);
+            }
+
             if (args == null || args.length == 0)
-                throw new SQLiteException("Where value is required for findAllBy[Field]OrderBy[Field] methods");
+                throw new SQLiteException("The args not have null o empty");
 
             String[] argsString = Stream.of(args)
                     .filter(Objects::nonNull)
@@ -85,38 +100,28 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
                     .toArray(String[]::new);
 
             if (argsString.length == 0)
-                throw new SQLiteException("Where value is required for findAllBy[Field]OrderBy[Field] methods");
+                throw new SQLiteException("The args not is valid");
 
-            return findHandler.findAllByFieldOrderByField(method, argsString);
+            if (methodName.startsWith("findBy"))
+                return findHandler.createFindBy(method, argsString);
+            else if (methodName.startsWith("findAllBy") && !methodName.matches("findAllBy\\w+OrderBy\\w+"))
+                return findHandler.createFindAllBy(method, argsString);
+            else if (methodName.startsWith("updateBy")) {
+                if (args.length < 2 || args[0] == null)
+                    throw new SQLiteException("Entity and where value are required for updateBy methods");
+
+                return updateHandler.updateByField(method, (T) args[0], new String[]{argsString[1]});
+            }
+            else if (methodName.startsWith("update") && methodName.contains("Where")) {
+                // Handle methods like updateStateWhereLocationAndCountry
+                return updateHandler.updateFieldWhereConditions(method, args);
+            }
+
+            throw new UnsupportedOperationException("Method not supported: " + methodName);
+        } catch (android.database.sqlite.SQLiteException e) {
+            // Wrap Android's SQLiteException in our own SQLiteException
+            throw new SQLiteException("SQLite error: " + e.getMessage(), e);
         }
-
-        if (args == null || args.length == 0)
-            throw new SQLiteException("The args not have null o empty");
-
-        String[] argsString = Stream.of(args)
-                .filter(Objects::nonNull)
-                .map(String::valueOf)
-                .toArray(String[]::new);
-
-        if (argsString.length == 0)
-            throw new SQLiteException("The args not is valid");
-
-        if (methodName.startsWith("findBy"))
-            return findHandler.createFindBy(method, argsString);
-        else if (methodName.startsWith("findAllBy") && !methodName.matches("findAllBy\\w+OrderBy\\w+"))
-            return findHandler.createFindAllBy(method, argsString);
-        else if (methodName.startsWith("updateBy")) {
-            if (args.length < 2 || args[0] == null)
-                throw new SQLiteException("Entity and where value are required for updateBy methods");
-
-            return updateHandler.updateByField(method, (T) args[0], new String[]{argsString[1]});
-        }
-        else if (methodName.startsWith("update") && methodName.contains("Where")) {
-            // Handle methods like updateStateWhereLocationAndCountry
-            return updateHandler.updateFieldWhereConditions(method, args);
-        }
-
-        throw new UnsupportedOperationException("Method not supported: " + methodName);
     }
 
 

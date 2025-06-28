@@ -97,19 +97,234 @@ public abstract class SQLiteTable<T> {
                 .append(table.name())
                 .append(" (\n");
 
-        // Generate column definitions
-        String instructionsCreateColumns = columnFields.stream()
-                .map(field -> {
-                    if (field.isAnnotationPresent(Column.class))
-                        return instructionCreateFromColumn(field);
-                    else if (field.isAnnotationPresent(Join.class))
-                        return instructionCreateFromJoin(field);
-                    return null;
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.joining(", \n"));
+        // Track column names to avoid duplicates
+        java.util.Set<String> processedColumnNames = new java.util.HashSet<>();
 
-        createTableSQL.append(instructionsCreateColumns);
+        // First, collect all fields by their column name to handle duplicates properly
+        java.util.Map<String, java.util.List<Field>> fieldsByColumnName = new java.util.HashMap<>();
+
+        // Group fields by column name
+        for (Field field : columnFields) {
+            String columnName = null;
+            if (field.isAnnotationPresent(Column.class)) {
+                columnName = field.getAnnotation(Column.class).name();
+            } else if (field.isAnnotationPresent(Join.class)) {
+                columnName = field.getAnnotation(Join.class).targetName();
+            }
+
+            if (columnName != null) {
+                if (!fieldsByColumnName.containsKey(columnName)) {
+                    fieldsByColumnName.put(columnName, new java.util.ArrayList<>());
+                }
+                fieldsByColumnName.get(columnName).add(field);
+            }
+        }
+
+        // Process fields, handling duplicates
+        List<String> columnDefinitions = new java.util.ArrayList<>();
+
+        for (String columnName : fieldsByColumnName.keySet()) {
+            java.util.List<Field> fields = fieldsByColumnName.get(columnName);
+
+            // Check if we have both Column and Join for the same column
+            boolean hasColumn = false;
+            boolean hasJoin = false;
+            boolean isUnique = false;
+
+            for (Field field : fields) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    hasColumn = true;
+                    Column column = field.getAnnotation(Column.class);
+                    if (column.isUnique()) {
+                        isUnique = true;
+                    }
+                }
+                if (field.isAnnotationPresent(Join.class)) {
+                    hasJoin = true;
+                    Join join = field.getAnnotation(Join.class);
+                    if (join.isUnique()) {
+                        isUnique = true;
+                    }
+                }
+            }
+
+            // Prioritize Column over Join, but preserve the UNIQUE constraint if either has it
+            Field fieldToUse = null;
+            for (Field field : fields) {
+                if (field.isAnnotationPresent(Column.class)) {
+                    fieldToUse = field;
+                    break;
+                }
+            }
+
+            if (fieldToUse == null) {
+                for (Field field : fields) {
+                    if (field.isAnnotationPresent(Join.class)) {
+                        fieldToUse = field;
+                        break;
+                    }
+                }
+            }
+
+            if (fieldToUse != null) {
+                String columnDefinition;
+                if (fieldToUse.isAnnotationPresent(Column.class)) {
+                    // For Column fields, we need to check if any Join annotation for the same column has isUnique=true
+                    boolean joinHasUnique = false;
+                    for (Field field : fields) {
+                        if (field.isAnnotationPresent(Join.class) && field.getAnnotation(Join.class).isUnique()) {
+                            joinHasUnique = true;
+                            break;
+                        }
+                    }
+
+                    // If a Join annotation has isUnique=true, we need to add the UNIQUE constraint to the Column
+                    if (joinHasUnique) {
+                        Column column = fieldToUse.getAnnotation(Column.class);
+                        // Create a dynamic proxy for the Column annotation with isUnique=true
+                        Column uniqueColumn = new Column() {
+                            @Override
+                            public Class<? extends java.lang.annotation.Annotation> annotationType() {
+                                return Column.class;
+                            }
+
+                            @Override
+                            public String name() {
+                                return column.name();
+                            }
+
+                            @Override
+                            public boolean isPrimaryKey() {
+                                return column.isPrimaryKey();
+                            }
+
+                            @Override
+                            public boolean isAutoIncrement() {
+                                return column.isAutoIncrement();
+                            }
+
+                            @Override
+                            public boolean permitNull() {
+                                return column.permitNull();
+                            }
+
+                            @Override
+                            public boolean isUnique() {
+                                return true; // Force isUnique to be true
+                            }
+
+                            @Override
+                            public String defaultValue() {
+                                return column.defaultValue();
+                            }
+                        };
+
+                        // Use reflection to set the annotation on the field
+                        try {
+                            java.lang.reflect.Field annotationsField = java.lang.Class.class.getDeclaredField("annotations");
+                            annotationsField.setAccessible(true);
+                            java.util.Map<Class<? extends java.lang.annotation.Annotation>, java.lang.annotation.Annotation> annotations = 
+                                (java.util.Map<Class<? extends java.lang.annotation.Annotation>, java.lang.annotation.Annotation>) annotationsField.get(fieldToUse);
+                            annotations.put(Column.class, uniqueColumn);
+                        } catch (Exception e) {
+                            // If we can't modify the annotation, we'll just add UNIQUE to the column definition
+                            System.out.println("[DEBUG_LOG] Error setting unique column annotation: " + e.getMessage());
+                        }
+                    }
+
+                    columnDefinition = instructionCreateFromColumn(fieldToUse);
+
+                    // If we couldn't modify the annotation and any Join has isUnique=true, add UNIQUE constraint
+                    if (!columnDefinition.contains("UNIQUE") && hasJoin) {
+                        for (Field field : fields) {
+                            if (field.isAnnotationPresent(Join.class) && field.getAnnotation(Join.class).isUnique()) {
+                                columnDefinition += " UNIQUE";
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // For Join fields, we need to check if any Column annotation for the same column has isUnique=true
+                    boolean columnHasUnique = false;
+                    for (Field field : fields) {
+                        if (field.isAnnotationPresent(Column.class) && field.getAnnotation(Column.class).isUnique()) {
+                            columnHasUnique = true;
+                            break;
+                        }
+                    }
+
+                    // If a Column annotation has isUnique=true, we need to add the UNIQUE constraint to the Join
+                    if (columnHasUnique) {
+                        Join join = fieldToUse.getAnnotation(Join.class);
+                        // Create a dynamic proxy for the Join annotation with isUnique=true
+                        Join uniqueJoin = new Join() {
+                            @Override
+                            public Class<? extends java.lang.annotation.Annotation> annotationType() {
+                                return Join.class;
+                            }
+
+                            @Override
+                            public String targetName() {
+                                return join.targetName();
+                            }
+
+                            @Override
+                            public Class<?> relationShip() {
+                                return join.relationShip();
+                            }
+
+                            @Override
+                            public String source() {
+                                return join.source();
+                            }
+
+                            @Override
+                            public String defaultValue() {
+                                return join.defaultValue();
+                            }
+
+                            @Override
+                            public boolean isUnique() {
+                                return true; // Force isUnique to be true
+                            }
+
+                            @Override
+                            public boolean permitNull() {
+                                return join.permitNull();
+                            }
+                        };
+
+                        // Use reflection to set the annotation on the field
+                        try {
+                            java.lang.reflect.Field annotationsField = java.lang.Class.class.getDeclaredField("annotations");
+                            annotationsField.setAccessible(true);
+                            java.util.Map<Class<? extends java.lang.annotation.Annotation>, java.lang.annotation.Annotation> annotations = 
+                                (java.util.Map<Class<? extends java.lang.annotation.Annotation>, java.lang.annotation.Annotation>) annotationsField.get(fieldToUse);
+                            annotations.put(Join.class, uniqueJoin);
+                        } catch (Exception e) {
+                            // If we can't modify the annotation, we'll just add UNIQUE to the column definition
+                            System.out.println("[DEBUG_LOG] Error setting unique join annotation: " + e.getMessage());
+                        }
+                    }
+
+                    columnDefinition = instructionCreateFromJoin(fieldToUse);
+
+                    // If we couldn't modify the annotation and any Column has isUnique=true, add UNIQUE constraint
+                    if (!columnDefinition.contains("UNIQUE") && hasColumn) {
+                        for (Field field : fields) {
+                            if (field.isAnnotationPresent(Column.class) && field.getAnnotation(Column.class).isUnique()) {
+                                columnDefinition += " UNIQUE";
+                                break;
+                            }
+                        }
+                    }
+                }
+                columnDefinitions.add(columnDefinition);
+                processedColumnNames.add(columnName);
+            }
+        }
+
+        createTableSQL.append(String.join(", \n", columnDefinitions));
 
         // Collect and add foreign key constraints
         List<String> foreignKeyConstraints = columnFields.stream()
@@ -128,7 +343,11 @@ public abstract class SQLiteTable<T> {
         // Execute the SQL statement to create the table
         SQLiteDatabase db = management.getWritableDatabase();
         try {
+            System.out.println("[DEBUG_LOG] Creating table with SQL: " + createTableSQL.toString());
             db.execSQL(createTableSQL.toString());
+        } catch (Exception e) {
+            System.out.println("[DEBUG_LOG] Error creating table: " + e.getMessage());
+            throw e;
         } finally {
             db.close();
         }
@@ -155,9 +374,8 @@ public abstract class SQLiteTable<T> {
         StringBuilder instruction = new StringBuilder();
 
         instruction
-                .append("\"")
                 .append(column.name())
-                .append("\" ")
+                .append(" ")
                 .append(getTypeColumn(type));
 
         if (!column.permitNull())
@@ -220,9 +438,8 @@ public abstract class SQLiteTable<T> {
         Class<?> columnType = sourceField != null ? sourceField.getType() : field.getType();
 
         instruction
-                .append("\"")
                 .append(join.targetName())
-                .append("\" ")
+                .append(" ")
                 .append(getTypeColumn(columnType));
 
         if (!join.permitNull())
@@ -259,8 +476,8 @@ public abstract class SQLiteTable<T> {
         // Add foreign key constraint
         if (join.relationShip().isAnnotationPresent(Table.class)) {
             Table targetTable = join.relationShip().getAnnotation(Table.class);
-            return "FOREIGN KEY (\"" + join.targetName() + "\") REFERENCES \"" + 
-                   targetTable.name() + "\" (\"" + join.source() + "\")";
+            return "FOREIGN KEY (" + join.targetName() + ") REFERENCES " + 
+                   targetTable.name() + " (" + join.source() + ")";
         }
 
         return "";
