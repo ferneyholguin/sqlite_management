@@ -51,10 +51,10 @@ public class QueryFindHandler<T> {
 
     /**
      * Crea una consulta para buscar entidades por un valor específico de un campo.
-     * Analiza el nombre del método para determinar el campo por el que buscar.
+     * Analiza el nombre del metodo para determinar el campo por el que buscar.
      * 
-     * @param method El método invocado
-     * @param args Los argumentos pasados al método (valor a buscar)
+     * @param method El metodo invocado
+     * @param args Los argumentos pasados al metodo (valor a buscar)
      * @return Una entidad o lista de entidades que coinciden con el criterio
      * @throws SQLiteException Si el campo no existe o hay errores en la consulta
      */
@@ -255,43 +255,18 @@ public class QueryFindHandler<T> {
     public T getResultCursor(Cursor cursor) {
         try {
             T instance = entityClass.newInstance();
-            System.out.println("[DEBUG_LOG] Creating entity instance of class: " + entityClass.getName());
-
-            // Print all column names in the cursor
-            System.out.println("[DEBUG_LOG] Cursor column names:");
-            for (String columnName : cursor.getColumnNames()) {
-                System.out.println("[DEBUG_LOG]   " + columnName);
-            }
 
             // Process all fields
             for (Field field : entityClass.getDeclaredFields()) {
-                System.out.println("[DEBUG_LOG] Processing field: " + field.getName());
                 if (field.isAnnotationPresent(Column.class)) {
-                    System.out.println("[DEBUG_LOG]   Field has Column annotation");
                     processColumnField(cursor, instance, field);
                 } else if (field.isAnnotationPresent(Join.class)) {
-                    System.out.println("[DEBUG_LOG]   Field has Join annotation");
                     processJoinField(instance, field);
-                } else {
-                    System.out.println("[DEBUG_LOG]   Field has no relevant annotations");
-                }
-            }
-
-            // Print all field values in the instance
-            System.out.println("[DEBUG_LOG] Entity instance field values:");
-            for (Field field : entityClass.getDeclaredFields()) {
-                field.setAccessible(true);
-                try {
-                    System.out.println("[DEBUG_LOG]   " + field.getName() + ": " + field.get(instance));
-                } catch (Exception e) {
-                    System.out.println("[DEBUG_LOG]   " + field.getName() + ": <error getting value>");
                 }
             }
 
             return instance;
         } catch (Exception e) {
-            System.out.println("[DEBUG_LOG] Error creating entity from cursor: " + e.getMessage());
-            e.printStackTrace();
             throw new SQLiteException("Error creating entity from cursor: " + e.getMessage(), e);
         }
     }
@@ -346,15 +321,9 @@ public class QueryFindHandler<T> {
         Join join = field.getAnnotation(Join.class);
         Class<?> relationshipClass = join.relationShip();
 
-        System.out.println("[DEBUG_LOG] Processing Join field: " + field.getName());
-        System.out.println("[DEBUG_LOG] Join targetName: " + join.targetName());
-        System.out.println("[DEBUG_LOG] Join source: " + join.source());
-        System.out.println("[DEBUG_LOG] Join relationShip: " + relationshipClass.getName());
-
         // Find the target field (foreign key) in the current entity
         Field targetField = findFieldByColumnName(entityClass, join.targetName());
         if (targetField == null) {
-            System.out.println("[DEBUG_LOG] Target field not found by column name, trying by field name");
             // If there's no explicit field for the target, check if there's a field with the same name
             for (Field f : entityClass.getDeclaredFields()) {
                 if (f.getName().equalsIgnoreCase(join.targetName())) {
@@ -364,27 +333,19 @@ public class QueryFindHandler<T> {
             }
 
             // If still not found, we can't proceed
-            if (targetField == null) {
-                System.out.println("[DEBUG_LOG] Target field not found, cannot proceed");
+            if (targetField == null)
                 return;
-            }
-        }
 
-        System.out.println("[DEBUG_LOG] Found target field: " + targetField.getName());
+        }
 
         // Find the source field (primary key) in the relationship class
         Field sourceField = findFieldByColumnName(relationshipClass, join.source());
-        if (sourceField == null) {
-            System.out.println("[DEBUG_LOG] Source field not found, cannot proceed");
+        if (sourceField == null)
             return;
-        }
-
-        System.out.println("[DEBUG_LOG] Found source field: " + sourceField.getName());
 
         // Get the foreign key value from the target field
         targetField.setAccessible(true);
         Object foreignKeyValue = targetField.get(instance);
-        System.out.println("[DEBUG_LOG] Foreign key value: " + foreignKeyValue);
 
         // If the foreign key is null and null is permitted, leave the join field as null
         if (foreignKeyValue == null) {

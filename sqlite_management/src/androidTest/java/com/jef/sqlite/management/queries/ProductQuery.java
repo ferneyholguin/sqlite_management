@@ -55,4 +55,19 @@ public interface ProductQuery extends DynamicQuery<Product> {
 
     Optional<Product> findById(int id);
 
+    /**
+     * Update a product by id
+     * @param values the values to update
+     * @param id the id of the product to update
+     * @return the number of rows updated
+     */
+    int updateById(android.content.ContentValues values, int id);
+
+    /**
+     * Update products by name
+     * @param values the values to update
+     * @param name the name of the products to update
+     * @return the number of rows updated
+     */
+    int updateByName(android.content.ContentValues values, String name);
 }

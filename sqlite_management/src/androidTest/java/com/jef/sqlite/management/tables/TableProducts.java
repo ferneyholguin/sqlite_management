@@ -27,6 +27,15 @@ public class TableProducts extends SQLiteTable<Product>{
     }
 
     /**
+     * Get a product by id
+     * @param id the id of the product to find
+     * @return an Optional containing the product if found, or empty if not found
+     */
+    public java.util.Optional<Product> getProductById(int id) {
+        return query().findById(id);
+    }
+
+    /**
      * Get all products
      * @return a list of all products
      */
@@ -71,4 +80,23 @@ public class TableProducts extends SQLiteTable<Product>{
         return query().save(product);
     }
 
+    /**
+     * Update a product by id
+     * @param values the values to update
+     * @param id the id of the product to update
+     * @return the number of rows updated
+     */
+    public int updateProductById(android.content.ContentValues values, int id) {
+        return query().updateById(values, id);
+    }
+
+    /**
+     * Update products by name
+     * @param values the values to update
+     * @param name the name of the products to update
+     * @return the number of rows updated
+     */
+    public int updateProductByName(android.content.ContentValues values, String name) {
+        return query().updateByName(values, name);
+    }
 }

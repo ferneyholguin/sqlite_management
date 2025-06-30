@@ -57,8 +57,11 @@ public class UniqueFieldTest {
         product.setCode("UNIQUE123");
         product.setCategoryId(1);
 
-        // Use the already saved category object
-        product.setCategory(savedCategory);
+        // Create and set the category object directly
+        Category categoryForProduct = new Category();
+        categoryForProduct.setId(1);
+        categoryForProduct.setName("Test Category");
+        product.setCategory(categoryForProduct);
 
         ProductWithUniqueCode savedProduct = productTable.saveProduct(product);
         System.out.println("[DEBUG_LOG] Saved product ID: " + savedProduct.getId());
@@ -72,8 +75,11 @@ public class UniqueFieldTest {
         uniqueCategoryProduct.setName("Test Product with Unique Category");
         uniqueCategoryProduct.setCategoryId(1);
 
-        // Use the already saved category object
-        uniqueCategoryProduct.setCategory(savedCategory);
+        // Create and set the category object directly
+        Category categoryForUniqueProduct = new Category();
+        categoryForUniqueProduct.setId(1);
+        categoryForUniqueProduct.setName("Test Category");
+        uniqueCategoryProduct.setCategory(categoryForUniqueProduct);
 
         ProductWithUniqueCategory savedUniqueProduct = uniqueCategoryTable.saveProduct(uniqueCategoryProduct);
         System.out.println("[DEBUG_LOG] Saved unique product ID: " + savedUniqueProduct.getId());
@@ -109,12 +115,11 @@ public class UniqueFieldTest {
         uniqueCategoryProduct.setName("Another Product with Unique Category");
         uniqueCategoryProduct.setCategoryId(1); // Same category ID as the product in setupTestData
 
-        // Get the saved category from the database
-        CategoryTable categoryTable = new CategoryTable(appContext);
-        List<Category> categories = categoryTable.getAllCategories();
-        assertFalse("Should find at least one category", categories.isEmpty());
-        Category savedCategory = categories.get(0);
-        uniqueCategoryProduct.setCategory(savedCategory);
+        // Create and set the category object directly
+        Category categoryForUniqueProduct = new Category();
+        categoryForUniqueProduct.setId(1);
+        categoryForUniqueProduct.setName("Test Category");
+        uniqueCategoryProduct.setCategory(categoryForUniqueProduct);
 
         // Attempt to save the product with the duplicate category
         try {

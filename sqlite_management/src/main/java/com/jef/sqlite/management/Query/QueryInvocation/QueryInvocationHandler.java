@@ -94,6 +94,11 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
             if (args == null || args.length == 0)
                 throw new SQLiteException("The args not have null o empty");
 
+
+            if (methodName.startsWith("updateBy"))
+                return updateHandler.updateBy(method, args);
+
+
             String[] argsString = Stream.of(args)
                     .filter(Objects::nonNull)
                     .map(String::valueOf)
@@ -106,16 +111,6 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
                 return findHandler.createFindBy(method, argsString);
             else if (methodName.startsWith("findAllBy") && !methodName.matches("findAllBy\\w+OrderBy\\w+"))
                 return findHandler.createFindAllBy(method, argsString);
-            else if (methodName.startsWith("updateBy")) {
-                if (args.length < 2 || args[0] == null)
-                    throw new SQLiteException("Entity and where value are required for updateBy methods");
-
-                return updateHandler.updateByField(method, (T) args[0], new String[]{argsString[1]});
-            }
-            else if (methodName.startsWith("update") && methodName.contains("Where")) {
-                // Handle methods like updateStateWhereLocationAndCountry
-                return updateHandler.updateFieldWhereConditions(method, args);
-            }
 
             throw new UnsupportedOperationException("Method not supported: " + methodName);
         } catch (android.database.sqlite.SQLiteException e) {

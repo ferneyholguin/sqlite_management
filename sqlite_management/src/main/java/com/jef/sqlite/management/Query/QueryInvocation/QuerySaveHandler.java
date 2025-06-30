@@ -47,7 +47,7 @@ public class QuerySaveHandler<T> {
      * @return The saved entity with any auto-generated values (like auto-increment IDs)
      * @throws SQLiteException If there's an error during the save operation
      */
-    public T save(T entity) throws SQLiteException {
+    public long save(T entity) throws SQLiteException {
         if (entity == null)
             throw new SQLiteException("Cannot save null entity");
 
@@ -97,7 +97,6 @@ public class QuerySaveHandler<T> {
 
         // Create ContentValues from entity fields
         ContentValues values = new ContentValues();
-        Field primaryKeyField = null;
 
         // Process all fields with Column annotation
         for (Field field : entityClass.getDeclaredFields()) {
@@ -107,10 +106,9 @@ public class QuerySaveHandler<T> {
             Column column = field.getAnnotation(Column.class);
             String columnName = column.name();
 
-            if (column.isAutoIncrement()) {
-                primaryKeyField = field;
+            if (column.isAutoIncrement())
                 continue;
-            }
+
 
             field.setAccessible(true);
             try {
@@ -169,21 +167,7 @@ public class QuerySaveHandler<T> {
                 if (id == -1)
                     throw new SQLiteException("Failed to insert entity into table " + tableName);
 
-                // If we have an auto-increment primary key, set its value in the entity
-                if (primaryKeyField != null && primaryKeyField.getAnnotation(Column.class).isAutoIncrement()) {
-                    primaryKeyField.setAccessible(true);
-                    try {
-                        if (primaryKeyField.getType() == int.class || primaryKeyField.getType() == Integer.class) {
-                            primaryKeyField.set(entity, (int) id);
-                        } else if (primaryKeyField.getType() == long.class || primaryKeyField.getType() == Long.class) {
-                            primaryKeyField.set(entity, id);
-                        }
-                    } catch (IllegalAccessException e) {
-                        throw new SQLiteException("Error setting auto-generated ID: " + e.getMessage(), e);
-                    }
-                }
-
-                return entity;
+                return id;
             } catch (android.database.sqlite.SQLiteException e) {
                 // Wrap Android's SQLiteException in our own SQLiteException
                 throw new SQLiteException("SQLite error: " + e.getMessage(), e);

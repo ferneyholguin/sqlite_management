@@ -28,7 +28,7 @@ public @interface Join {
     /**
      * Define el nombre de la variable en la entidad relacionada que almacena la referencia.
      * 
-     * @return El nombre de la variable en la entidad relacionada
+     * @return El nombre de la columna fuente en la tabla relacionada
      */
     String source();
 
