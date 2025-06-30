@@ -52,11 +52,9 @@ public class ProductLineTest {
         Product product = new Product();
         product.setName("Test Product with Line");
 
-        // Create and set the line object directly
-        Line lineForProduct = new Line();
-        lineForProduct.setId(1);
-        lineForProduct.setName("Test Line");
-        product.setLine(lineForProduct);
+        // Use the already saved line object instead of creating a new one
+        // This ensures the line object has a valid ID before using it in a relationship
+        product.setLine(savedLine);
 
         Product savedProduct = tableProducts.saveProduct(product);
         System.out.println("[DEBUG_LOG] Saved product ID: " + savedProduct.getId());

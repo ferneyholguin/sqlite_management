@@ -26,9 +26,9 @@ public @interface Join {
     Class<?> relationShip();
 
     /**
-     * Define el nombre de la columna en la tabla relacionada a la que se hace referencia.
+     * Define el nombre de la variable en la entidad relacionada que almacena la referencia.
      * 
-     * @return El nombre de la columna fuente en la tabla relacionada
+     * @return El nombre de la variable en la entidad relacionada
      */
     String source();
 
