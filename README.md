@@ -18,7 +18,7 @@ Añade la siguiente dependencia a tu archivo `build.gradle` del módulo:
 
 ```gradle
 dependencies {
-    implementation 'com.jef:sqlite-management:1.0.0'
+    implementation("com.github.ferneyholguin:sqlite_management:1.0.2")
 }
 ```
 

@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.library)
+    id("maven-publish")
 }
 
 android {
@@ -25,6 +26,25 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+// Configuración de la publicación en Maven
+publishing {
+    publications {
+        create<MavenPublication>("release") {
+            from(components["release"])
+
+            groupId = "com.github.ferneyholguin"
+            artifactId = "sqlite_management"
+            version = "1.0.2"
+        }
+    }
+
+    repositories {
+        maven {
+            url = uri("https://jitpack.io")
+        }
     }
 }
 
