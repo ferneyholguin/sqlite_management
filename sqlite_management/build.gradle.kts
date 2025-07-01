@@ -39,7 +39,7 @@ afterEvaluate {
 
                 groupId = "com.github.ferneyholguin"
                 artifactId = "sqlite_management"
-                version = "1.0.5"
+                version = "1.0.6"
 
                 // Agregar metadatos POM para JitPack
                 pom {
