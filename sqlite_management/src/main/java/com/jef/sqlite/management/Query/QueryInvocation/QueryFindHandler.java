@@ -3,10 +3,13 @@ package com.jef.sqlite.management.Query.QueryInvocation;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
+import com.jef.sqlite.management.Query.QueryFactory;
 import com.jef.sqlite.management.SQLiteManagement;
 import com.jef.sqlite.management.exceptions.SQLiteException;
 import com.jef.sqlite.management.interfaces.Column;
+import com.jef.sqlite.management.interfaces.DynamicQuery;
 import com.jef.sqlite.management.interfaces.Join;
+import com.jef.sqlite.management.interfaces.SQLiteQuery;
 import com.jef.sqlite.management.interfaces.Table;
 
 import java.lang.reflect.Field;
@@ -58,7 +61,7 @@ public class QueryFindHandler<T> {
      * @return Una entidad o lista de entidades que coinciden con el criterio
      * @throws SQLiteException Si el campo no existe o hay errores en la consulta
      */
-    public Object createFindBy(Method method, String[] args) {
+    public Object createFindBy(Method method, Object[] args) {
         String methodName = method.getName();
 
         String field = methodName.substring("findBy".length());
@@ -75,7 +78,7 @@ public class QueryFindHandler<T> {
         if (List.class.isAssignableFrom(returnType)) {
             return queryList(sql, args);
         } else {
-            return queryItem(sql, args);
+            return queryItem(sql, createArgs(args));
         }
     }
 
@@ -88,7 +91,7 @@ public class QueryFindHandler<T> {
      * @return Una lista de entidades que coinciden con el criterio
      * @throws SQLiteException Si el campo no existe o hay errores en la consulta
      */
-    public List<T> createFindAllBy(Method method, String[] args) {
+    public List<T> createFindAllBy(Method method, Object[] args) {
         String methodName = method.getName();
 
         String field = methodName.substring("findAllBy".length());
@@ -154,7 +157,7 @@ public class QueryFindHandler<T> {
      * @return A list of entities that match the criteria, ordered as specified
      * @throws SQLiteException If the fields don't exist or there's an error in the query
      */
-    public List<T> findAllByFieldOrderByField(Method method, String[] args) {
+    public List<T> findAllByFieldOrderByField(Method method, Object[] args) {
         String methodName = method.getName();
 
         // Extract the direction from the method name
@@ -191,23 +194,23 @@ public class QueryFindHandler<T> {
         String sql = "SELECT * FROM " + tableName + " WHERE " + whereColumn + " = ? ORDER BY " + orderColumn + " " + direction;
 
         // Execute the query with just the first argument (the where value)
-        return queryList(sql, new String[]{args[0]});
+        return queryList(sql, createArgs(args));
     }
 
     /**
      * Executes a SQL query and returns a list of entities.
      * 
      * @param sql The SQL query to execute
-     * @param selectionArgs The arguments for the query
+     * @param args The arguments for the query
      * @return A list of entities that match the query
      * @throws SQLiteException If there's an error executing the query
      */
-    public List<T> queryList(String sql, String[] selectionArgs) {
+    public List<T> queryList(String sql, Object[] args) {
         SQLiteDatabase db = management.getReadableDatabase();
         List<T> results = new ArrayList<>();
 
         try {
-            Cursor cursor = db.rawQuery(sql, selectionArgs);
+            Cursor cursor = db.rawQuery(sql, createArgs(args));
             while (cursor.moveToNext())
                 results.add(getResultCursor(cursor));
 
@@ -258,11 +261,11 @@ public class QueryFindHandler<T> {
 
             // Process all fields
             for (Field field : entityClass.getDeclaredFields()) {
-                if (field.isAnnotationPresent(Column.class)) {
+                if (field.isAnnotationPresent(Column.class))
                     processColumnField(cursor, instance, field);
-                } else if (field.isAnnotationPresent(Join.class)) {
-                    processJoinField(instance, field);
-                }
+                else if (field.isAnnotationPresent(Join.class))
+                    processJoinField(cursor, instance, field);
+
             }
 
             return instance;
@@ -279,7 +282,7 @@ public class QueryFindHandler<T> {
      * @param field The field to process
      * @throws Exception If there's an error processing the field
      */
-    private void processColumnField(Cursor cursor, T instance, Field field) throws Exception {
+    private void processColumnField(Cursor cursor, Object instance, Field field) throws Exception {
         Column column = field.getAnnotation(Column.class);
         String columnName = column.name();
         int columnIndex = cursor.getColumnIndex(columnName);
@@ -295,19 +298,19 @@ public class QueryFindHandler<T> {
             return;
         }
 
-        if (fieldType == String.class) {
+        if (fieldType == String.class)
             field.set(instance, cursor.getString(columnIndex));
-        } else if (fieldType == int.class || fieldType == Integer.class) {
+        else if (fieldType == int.class || fieldType == Integer.class)
             field.set(instance, cursor.getInt(columnIndex));
-        } else if (fieldType == long.class || fieldType == Long.class) {
+        else if (fieldType == long.class || fieldType == Long.class)
             field.set(instance, cursor.getLong(columnIndex));
-        } else if (fieldType == double.class || fieldType == Double.class) {
+        else if (fieldType == double.class || fieldType == Double.class)
             field.set(instance, cursor.getDouble(columnIndex));
-        } else if (fieldType == float.class || fieldType == Float.class) {
+        else if (fieldType == float.class || fieldType == Float.class)
             field.set(instance, cursor.getFloat(columnIndex));
-        } else if (fieldType == boolean.class || fieldType == Boolean.class) {
+        else if (fieldType == boolean.class || fieldType == Boolean.class)
             field.set(instance, cursor.getInt(columnIndex) == 1);
-        }
+
     }
 
     /**
@@ -317,102 +320,49 @@ public class QueryFindHandler<T> {
      * @param field The field to process
      * @throws Exception If there's an error processing the field
      */
-    private void processJoinField(T instance, Field field) throws Exception {
+    private void processJoinField(Cursor cursor, Object instance, Field field) throws Exception {
         Join join = field.getAnnotation(Join.class);
         Class<?> relationshipClass = join.relationShip();
 
-        // Find the target field (foreign key) in the current entity
-        Field targetField = findFieldByColumnName(entityClass, join.targetName());
-        if (targetField == null) {
-            // If there's no explicit field for the target, check if there's a field with the same name
-            for (Field f : entityClass.getDeclaredFields()) {
-                if (f.getName().equalsIgnoreCase(join.targetName())) {
-                    targetField = f;
-                    break;
-                }
-            }
+        if (relationshipClass == null)
+            throw new SQLiteException("Relationship class not specified for @Join field: " + field.getName());
+        if (relationshipClass.getAnnotation(Table.class) == null)
+            throw new SQLiteException("Relationship class is not annotated with @Table: " + relationshipClass.getName());
 
-            // If still not found, we can't proceed
-            if (targetField == null)
-                return;
+        Field fieldJoin = Stream.of(relationshipClass.getDeclaredFields())
+                .filter(f -> f.isAnnotationPresent(Column.class))
+                .filter(f -> f.getName().equalsIgnoreCase(join.source()))
+                .findFirst()
+                .orElse(null);
 
-        }
+        String sourceColumnName = fieldJoin.getAnnotation(Column.class).name();
 
-        // Find the source field (primary key) in the relationship class
-        Field sourceField = findFieldByColumnName(relationshipClass, join.source());
-        if (sourceField == null)
+        int columnIndex = cursor.getColumnIndex(join.targetName());
+
+        if (columnIndex == -1)
             return;
 
-        // Get the foreign key value from the target field
-        targetField.setAccessible(true);
-        Object foreignKeyValue = targetField.get(instance);
+        if (cursor.isNull(columnIndex))
+            return;
 
-        // If the foreign key is null and null is permitted, leave the join field as null
-        if (foreignKeyValue == null) {
-            if (join.permitNull()) {
-                return;
-            } else if (!join.defaultValue().isEmpty()) {
-                // Use default value if specified
-                try {
-                    Object defaultInstance = createDefaultInstance(relationshipClass, join.defaultValue());
-                    field.setAccessible(true);
-                    field.set(instance, defaultInstance);
-                } catch (Exception e) {
-                    throw new SQLiteException("Error creating default instance: " + e.getMessage(), e);
-                }
-                return;
-            } else {
-                return;
-            }
-        }
-
-        // Get the column name for the source field in the relationship class
-        Column sourceColumn = sourceField.getAnnotation(Column.class);
-        String sourceColumnName = sourceColumn.name();
+        String targetNameValue = cursor.getString(columnIndex);
 
         // Create a query to find the related entity
-        String sql = "SELECT * FROM " + relationshipClass.getAnnotation(Table.class).name() +
+        final String sql = "SELECT * FROM " + relationshipClass.getAnnotation(Table.class).name() +
                 " WHERE " + sourceColumnName + " = ?";
 
         // Execute the query
         SQLiteDatabase db = management.getReadableDatabase();
         try {
-            Cursor cursor = db.rawQuery(sql, new String[]{foreignKeyValue.toString()});
-            if (cursor.moveToFirst()) {
+            Cursor cursorJoin = db.rawQuery(sql, new String[] { targetNameValue.toString() });
+            if (cursorJoin.moveToFirst()) {
                 // Create an instance of the relationship class
                 Object relatedInstance = relationshipClass.newInstance();
 
                 // Process all fields in the related entity
                 for (Field relatedField : relationshipClass.getDeclaredFields()) {
                     if (relatedField.isAnnotationPresent(Column.class)) {
-                        Column column = relatedField.getAnnotation(Column.class);
-                        String columnName = column.name();
-                        int columnIndex = cursor.getColumnIndex(columnName);
-
-                        if (columnIndex == -1)
-                            continue;
-
-                        relatedField.setAccessible(true);
-                        Class<?> fieldType = relatedField.getType();
-
-                        if (cursor.isNull(columnIndex)) {
-                            relatedField.set(relatedInstance, null);
-                            continue;
-                        }
-
-                        if (fieldType == String.class) {
-                            relatedField.set(relatedInstance, cursor.getString(columnIndex));
-                        } else if (fieldType == int.class || fieldType == Integer.class) {
-                            relatedField.set(relatedInstance, cursor.getInt(columnIndex));
-                        } else if (fieldType == long.class || fieldType == Long.class) {
-                            relatedField.set(relatedInstance, cursor.getLong(columnIndex));
-                        } else if (fieldType == double.class || fieldType == Double.class) {
-                            relatedField.set(relatedInstance, cursor.getDouble(columnIndex));
-                        } else if (fieldType == float.class || fieldType == Float.class) {
-                            relatedField.set(relatedInstance, cursor.getFloat(columnIndex));
-                        } else if (fieldType == boolean.class || fieldType == Boolean.class) {
-                            relatedField.set(relatedInstance, cursor.getInt(columnIndex) == 1);
-                        }
+                        processColumnField(cursorJoin, relatedInstance, relatedField);
                     }
                 }
 
@@ -420,84 +370,76 @@ public class QueryFindHandler<T> {
                 field.setAccessible(true);
                 field.set(instance, relatedInstance);
             }
-            cursor.close();
+
+            cursorJoin.close();
         } finally {
             db.close();
         }
     }
 
+
     /**
-     * Finds a field in a class by its column name.
+     * Executes a custom SQL query defined in a SQLiteQuery annotation.
      * 
-     * @param clazz The class to search in
-     * @param columnName The column name to look for
-     * @return The field with the matching column name, or null if not found
+     * @param method The method annotated with SQLiteQuery
+     * @param args The arguments passed to the method
+     * @return The result of the query, either a List<T> or Optional<T> depending on the method's return type
+     * @throws SQLiteException If there's an error executing the query
      */
-    private Field findFieldByColumnName(Class<?> clazz, String columnName) {
-        for (Field field : clazz.getDeclaredFields()) {
-            if (field.isAnnotationPresent(Column.class)) {
-                Column column = field.getAnnotation(Column.class);
-                if (column.name().equals(columnName)) {
-                    return field;
-                }
-            }
+    public Object executeCustomQuery(Method method, Object[] args) {
+        // Get the SQL query from the annotation
+        SQLiteQuery annotation = method.getAnnotation(SQLiteQuery.class);
+        if (annotation == null)
+            throw new SQLiteException("Method is not annotated with SQLiteQuery: " + method.getName());
+
+        String sql = annotation.sql();
+        if (sql == null || sql.isEmpty())
+            throw new SQLiteException("SQL query cannot be empty in SQLiteQuery annotation");
+
+        final String[] queryArgs = createArgs(args);
+
+        // Check the return type and execute the appropriate query
+        Class<?> returnType = method.getReturnType();
+        if (List.class.isAssignableFrom(returnType)) {
+            return queryList(sql, queryArgs);
+        } else if (Optional.class.isAssignableFrom(returnType)) {
+            return queryItem(sql, queryArgs);
+        } else {
+            throw new SQLiteException("Unsupported return type for SQLiteQuery: " + returnType.getName() + 
+                                     ". Must be List<T> or Optional<T>");
         }
-        return null;
     }
 
-    /**
-     * Finds the primary key field in a class.
-     * 
-     * @param clazz The class to search in
-     * @return The primary key field, or null if not found
-     */
-    private Field findPrimaryKeyField(Class<?> clazz) {
-        for (Field field : clazz.getDeclaredFields()) {
-            if (field.isAnnotationPresent(Column.class)) {
-                Column column = field.getAnnotation(Column.class);
-                if (column.isPrimaryKey()) {
-                    return field;
-                }
+    public String[] createArgs(Object[] args) {
+        if (args == null || args.length == 0)
+            return new String[0];
+
+    	String[] result = new String[args.length];
+    	for(int i = 0; i < args.length; i++) {
+            String typeName = args[i].getClass().getSimpleName().toLowerCase();
+
+            switch (typeName) {
+                case "string":
+                case "short":
+                case "int":
+                case "integer":
+                case "long":
+                case "double":
+                case "float":
+                    result[i] = args[i].toString();
+                    break;
+                case "boolean":
+                    boolean value = (boolean) args[i];
+                    result[i] = value ? "1" : "0";
+                    break;
+
+                default:
+                    throw new SQLiteException("Unsupported type for parameter: " + args[i].getClass().getSimpleName());
             }
-        }
-        return null;
-    }
 
-    /**
-     * Creates a default instance of a class with a specified value.
-     * 
-     * @param clazz The class to create an instance of
-     * @param defaultValue The default value to set
-     * @return A new instance with the default value set
-     * @throws Exception If there's an error creating the instance
-     */
-    private Object createDefaultInstance(Class<?> clazz, String defaultValue) throws Exception {
-        Object instance = clazz.newInstance();
+    	}
 
-        // Find the primary key field
-        Field pkField = findPrimaryKeyField(clazz);
-        if (pkField == null)
-            throw new SQLiteException("No primary key field found in class: " + clazz.getName());
-
-        pkField.setAccessible(true);
-        Class<?> fieldType = pkField.getType();
-
-        // Set the default value based on the field type
-        if (fieldType == String.class) {
-            pkField.set(instance, defaultValue);
-        } else if (fieldType == int.class || fieldType == Integer.class) {
-            pkField.set(instance, Integer.parseInt(defaultValue));
-        } else if (fieldType == long.class || fieldType == Long.class) {
-            pkField.set(instance, Long.parseLong(defaultValue));
-        } else if (fieldType == double.class || fieldType == Double.class) {
-            pkField.set(instance, Double.parseDouble(defaultValue));
-        } else if (fieldType == float.class || fieldType == Float.class) {
-            pkField.set(instance, Float.parseFloat(defaultValue));
-        } else if (fieldType == boolean.class || fieldType == Boolean.class) {
-            pkField.set(instance, Boolean.parseBoolean(defaultValue));
-        }
-
-        return instance;
+    	return result;
     }
 
 

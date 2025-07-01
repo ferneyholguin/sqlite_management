@@ -1,7 +1,10 @@
 package com.jef.sqlite.management.Query.QueryInvocation;
 
+import android.database.sqlite.SQLiteDatabase;
+
 import com.jef.sqlite.management.SQLiteManagement;
 import com.jef.sqlite.management.exceptions.SQLiteException;
+import com.jef.sqlite.management.interfaces.SQLiteQuery;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -61,61 +64,127 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
         String methodName = method.getName();
 
         try {
+            // Check for SQLiteQuery annotation
+            if (method.isAnnotationPresent(SQLiteQuery.class)) {
+                SQLiteQuery sqLiteQuery = method.getAnnotation(SQLiteQuery.class);
+
+                // Validate arguments
+                if (args == null) {
+                    args = new Object[0];
+                }
+
+                if (sqLiteQuery.waitResult())
+                    return findHandler.executeCustomQuery(method, args);
+                else {
+                    return executeCustomQuery(method, args);
+                }
+
+            }
+
             // Operaciones de guardado
             if (methodName.equals("save")) {
                 if (args == null || args.length == 0 || args[0] == null)
                     throw new SQLiteException("Entity is required for save method");
 
-                return saveHandler.save((T) args[0]);
+                try {
+                    return saveHandler.save((T) args[0]);
+                } catch (ClassCastException e) {
+                    throw new SQLiteException("Entity must be of type " + entityClass.getName());
+                }
             }
 
             // Operaciones de búsqueda
-            if (methodName.equals("findAll")) {
+            if (methodName.equals("findAll"))
                 return findHandler.findAll();
-            } else if (methodName.matches("findAllOrderBy\\w+(Asc|Desc)?")) {
+
+            if (methodName.matches("findAllOrderBy\\w+(Asc|Desc)?"))
                 // Handle methods like findAllOrderByNameAsc or findAllOrderByNameDesc
                 return findHandler.findAllOrderBy(method);
-            } else if (methodName.matches("findAllBy\\w+OrderBy\\w+(Asc|Desc)?")) {
-                // Handle methods like findAllByNameOrderByIdAsc or findAllByNameOrderByIdDesc
-                if (args == null || args.length == 0)
-                    throw new SQLiteException("Where value is required for findAllBy[Field]OrderBy[Field] methods");
 
-                String[] argsString = Stream.of(args)
-                        .filter(Objects::nonNull)
-                        .map(String::valueOf)
-                        .toArray(String[]::new);
-
-                if (argsString.length == 0)
-                    throw new SQLiteException("Where value is required for findAllBy[Field]OrderBy[Field] methods");
-
-                return findHandler.findAllByFieldOrderByField(method, argsString);
-            }
 
             if (args == null || args.length == 0)
                 throw new SQLiteException("The args not have null o empty");
 
+            if (methodName.matches("findAllBy\\w+OrderBy\\w+(Asc|Desc)?"))
+                return findHandler.findAllByFieldOrderByField(method, args);
+
+            if (methodName.startsWith("findBy"))
+                return findHandler.createFindBy(method, args);
+
+            if (methodName.startsWith("findAllBy") && !methodName.matches("findAllBy\\w+OrderBy\\w+"))
+                return findHandler.createFindAllBy(method, args);
 
             if (methodName.startsWith("updateBy"))
                 return updateHandler.updateBy(method, args);
-
-
-            String[] argsString = Stream.of(args)
-                    .filter(Objects::nonNull)
-                    .map(String::valueOf)
-                    .toArray(String[]::new);
-
-            if (argsString.length == 0)
-                throw new SQLiteException("The args not is valid");
-
-            if (methodName.startsWith("findBy"))
-                return findHandler.createFindBy(method, argsString);
-            else if (methodName.startsWith("findAllBy") && !methodName.matches("findAllBy\\w+OrderBy\\w+"))
-                return findHandler.createFindAllBy(method, argsString);
 
             throw new UnsupportedOperationException("Method not supported: " + methodName);
         } catch (android.database.sqlite.SQLiteException e) {
             // Wrap Android's SQLiteException in our own SQLiteException
             throw new SQLiteException("SQLite error: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Executes a custom SQL query defined in a SQLiteQuery annotation that doesn't return results.
+     * This is used for non-query operations like INSERT, UPDATE, DELETE.
+     * 
+     * @param method The method annotated with SQLiteQuery
+     * @param args The arguments passed to the method
+     * @return The number of rows affected by the operation
+     * @throws SQLiteException If there's an error executing the query
+     */
+    private boolean executeCustomQuery(Method method, Object[] args) {
+        // Get the SQL query from the annotation
+        SQLiteQuery annotation = method.getAnnotation(SQLiteQuery.class);
+        if (annotation == null)
+            throw new SQLiteException("Method is not annotated with SQLiteQuery: " + method.getName());
+
+        String sql = annotation.sql();
+        if (sql == null || sql.isEmpty())
+            throw new SQLiteException("SQL query cannot be empty in SQLiteQuery annotation");
+
+        // Execute the SQL statement
+        SQLiteDatabase db = management.getWritableDatabase();
+        try {
+            // For non-query operations, we use execSQL
+            if (args.length > 0) {
+                // Replace ? placeholders with actual values
+                for (Object arg : args) {
+                    String typeName = arg.getClass().getSimpleName().toLowerCase();
+
+                    switch (typeName) {
+                        case "string":
+                            sql = sql.replaceFirst("\\?", "'" + arg + "'");
+                            break;
+
+                        case "short":
+                        case "int":
+                        case "integer":
+                        case "long":
+                        case "double":
+                        case "float":
+                            sql = sql.replaceFirst("\\?", arg.toString());
+                            break;
+                        case "boolean":
+                            boolean value = (boolean) arg;
+                            sql = sql.replaceFirst("\\?", (value ? "1" : "0"));
+                            break;
+
+                        default:
+                            throw new SQLiteException("Unsupported type for parameter: " + arg.getClass().getSimpleName());
+                    }
+
+                }
+
+            }
+
+            db.execSQL(sql);
+            return true;
+
+        } catch (android.database.sqlite.SQLiteException e) {
+            throw new SQLiteException("Error executing query: " + e.getMessage(), e);
+        } finally {
+            db.close();
         }
     }
 

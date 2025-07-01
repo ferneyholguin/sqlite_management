@@ -11,15 +11,26 @@ public class Product {
     private int id;
     @Column(name = "name")
     private String name;
+    @Column(name = "active")
+    private boolean active;
     @Join(targetName = "line", relationShip = Line.class, source = "id")
     private Line line;
 
     public Product() {
+        this.active = true; // Default to active
     }
 
     public Product(int id, String name, Line line) {
         this.id = id;
         this.name = name;
+        this.line = line;
+        this.active = true; // Default to active
+    }
+
+    public Product(int id, String name, boolean active, Line line) {
+        this.id = id;
+        this.name = name;
+        this.active = active;
         this.line = line;
     }
 
@@ -47,4 +58,11 @@ public class Product {
         this.line = line;
     }
 
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
 }
