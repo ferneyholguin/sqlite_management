@@ -35,7 +35,7 @@ afterEvaluate {
     publishing {
         publications {
             create<MavenPublication>("release") {
-                from(components["androidRelease"])
+                from(components["android"])
 
                 groupId = "com.github.ferneyholguin"
                 artifactId = "sqlite_management"
