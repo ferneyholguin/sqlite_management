@@ -1,5 +1,5 @@
 plugins {
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.library)  // Asegúrate de que sea 'android.library'
     id("maven-publish")
 }
 
@@ -23,6 +23,7 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -33,11 +34,10 @@ android {
 publishing {
     publications {
         create<MavenPublication>("release") {
-            from(components["release"])
-
+            from(components["release"])  // Aquí podrías usar 'androidLibrary'
             groupId = "com.github.ferneyholguin"
             artifactId = "sqlite_management"
-            version = "1.0.2"
+            version = "1.0.3"
         }
     }
 
@@ -49,7 +49,6 @@ publishing {
 }
 
 dependencies {
-
     implementation(libs.appcompat)
     implementation(libs.material)
     testImplementation(libs.junit)
