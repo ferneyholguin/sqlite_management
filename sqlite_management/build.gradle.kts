@@ -31,19 +31,37 @@ android {
 }
 
 // Configuración de la publicación en Maven
-publishing {
-    publications {
-        create<MavenPublication>("release") {
-            from(components["release"])  // Aquí podrías usar 'androidLibrary'
-            groupId = "com.github.ferneyholguin"
-            artifactId = "sqlite_management"
-            version = "1.0.3"
-        }
-    }
+afterEvaluate {
+    publishing {
+        publications {
+            create<MavenPublication>("release") {
+                from(components["release"])
 
-    repositories {
-        maven {
-            url = uri("https://jitpack.io")
+                groupId = "com.github.ferneyholguin"
+                artifactId = "sqlite_management"
+                version = "1.0.4"
+
+                // Agregar metadatos POM para JitPack
+                pom {
+                    name.set("SQLite Management")
+                    description.set("Android SQLite management library")
+                    url.set("https://github.com/ferneyholguin/sqlite_management")
+
+                    licenses {
+                        license {
+                            name.set("The Apache License, Version 2.0")
+                            url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
+                        }
+                    }
+
+                    developers {
+                        developer {
+                            id.set("ferneyholguin")
+                            name.set("Ferney Holguin")
+                        }
+                    }
+                }
+            }
         }
     }
 }

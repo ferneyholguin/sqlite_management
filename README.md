@@ -14,11 +14,37 @@ SQLite Management es una biblioteca para Android que simplifica la gestión de b
 ## Instalación
 
 ### Gradle
-Añade la siguiente dependencia a tu archivo `build.gradle` del módulo:
+Añade el repositorio JitPack a tu archivo `settings.gradle.kts` (para proyectos con Gradle Kotlin DSL) o `settings.gradle` (para proyectos con Gradle Groovy):
 
 ```gradle
+// Para Gradle Kotlin DSL (settings.gradle.kts)
+dependencyResolutionManagement {
+    repositories {
+        // Otros repositorios (Google, MavenCentral, etc.)
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+
+// Para Gradle Groovy (settings.gradle)
+dependencyResolutionManagement {
+    repositories {
+        // Otros repositorios (Google, MavenCentral, etc.)
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+
+Luego, añade la dependencia a tu archivo `build.gradle.kts` (para Kotlin DSL) o `build.gradle` (para Groovy) del módulo:
+
+```gradle
+// Para Gradle Kotlin DSL (build.gradle.kts)
 dependencies {
-    implementation("com.github.ferneyholguin:sqlite_management:1.0.2")
+    implementation("com.github.ferneyholguin:sqlite_management:1.0.4")
+}
+
+// Para Gradle Groovy (build.gradle)
+dependencies {
+    implementation 'com.github.ferneyholguin:sqlite_management:1.0.4'
 }
 ```
 
