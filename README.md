@@ -39,12 +39,12 @@ Luego, añade la dependencia a tu archivo `build.gradle.kts` (para Kotlin DSL) o
 ```gradle
 // Para Gradle Kotlin DSL (build.gradle.kts)
 dependencies {
-    implementation("com.github.ferneyholguin:sqlite_management:1.0.4")
+    implementation("com.github.ferneyholguin:sqlite_management:1.0.5")
 }
 
 // Para Gradle Groovy (build.gradle)
 dependencies {
-    implementation 'com.github.ferneyholguin:sqlite_management:1.0.4'
+    implementation 'com.github.ferneyholguin:sqlite_management:1.0.5'
 }
 ```
 

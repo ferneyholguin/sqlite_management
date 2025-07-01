@@ -35,11 +35,11 @@ afterEvaluate {
     publishing {
         publications {
             create<MavenPublication>("release") {
-                from(components["release"])
+                from(components["androidRelease"])
 
                 groupId = "com.github.ferneyholguin"
                 artifactId = "sqlite_management"
-                version = "1.0.4"
+                version = "1.0.5"
 
                 // Agregar metadatos POM para JitPack
                 pom {
