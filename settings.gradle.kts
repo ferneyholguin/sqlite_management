@@ -20,5 +20,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "sqlite_management"
-include(":app")
 include(":sqlite_management")
+include(":app")
