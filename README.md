@@ -325,4 +325,5 @@ Optional<Linea> findById(int id);
 5. Las consultas de actualización no actualizan las claves primarias.
 
 ## Licencia
-Este proyecto está licenciado bajo la Licencia MIT - ver el archivo LICENSE para más detalles.
+
+Este proyecto está licenciado bajo la [Licencia Apache 2.0](LICENSE).
