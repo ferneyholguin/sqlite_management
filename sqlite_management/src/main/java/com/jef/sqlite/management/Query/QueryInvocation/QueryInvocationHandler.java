@@ -8,8 +8,6 @@ import com.jef.sqlite.management.interfaces.SQLiteQuery;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.util.Objects;
-import java.util.stream.Stream;
 
 /**
  * Manejador de invocación para consultas dinámicas.
@@ -73,7 +71,7 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
                     args = new Object[0];
                 }
 
-                if (sqLiteQuery.waitResult())
+                if (sqLiteQuery.captureResult())
                     return findHandler.executeCustomQuery(method, args);
                 else {
                     return executeCustomQuery(method, args);

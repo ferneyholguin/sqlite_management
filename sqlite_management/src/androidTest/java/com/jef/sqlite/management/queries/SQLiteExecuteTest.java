@@ -18,7 +18,7 @@ public interface SQLiteExecuteTest extends DynamicQuery<Product> {
      * @param id the ID of the product to update
      * @return the number of rows affected (always 1 in this implementation)
      */
-    @SQLiteQuery(sql = "UPDATE products SET name = ? WHERE id = ?", waitResult = false)
+    @SQLiteQuery(sql = "UPDATE products SET name = ? WHERE id = ?", captureResult = false)
     int updateProductName(String newName, int id);
 
     /**
@@ -28,7 +28,7 @@ public interface SQLiteExecuteTest extends DynamicQuery<Product> {
      * @param id the ID of the product to delete
      * @return the number of rows affected (always 1 in this implementation)
      */
-    @SQLiteQuery(sql = "DELETE FROM products WHERE id = ?", waitResult = false)
+    @SQLiteQuery(sql = "DELETE FROM products WHERE id = ?", captureResult = false)
     int deleteProduct(int id);
 
     /**
@@ -39,6 +39,6 @@ public interface SQLiteExecuteTest extends DynamicQuery<Product> {
      * @param lineId the ID of the line for the new product
      * @return the number of rows affected (always 1 in this implementation)
      */
-    @SQLiteQuery(sql = "INSERT INTO products (name, line) VALUES (?, ?)", waitResult = false)
+    @SQLiteQuery(sql = "INSERT INTO products (name, line) VALUES (?, ?)", captureResult = false)
     int insertProduct(String name, int lineId);
 }

@@ -6,34 +6,34 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation for defining custom SQL queries on interface methods.
+ * Anotación para definir consultas SQL personalizadas en métodos de interfaz.
  * 
- * This annotation allows developers to specify a custom SQL query that will be executed
- * when the annotated method is called. The parameters of the method are passed as arguments
- * to the SQL query in the order they appear in the method signature.
+ * Esta anotación permite a los desarrolladores especificar una consulta SQL personalizada que se ejecutará
+ * cuando se llame al método anotado. Los parámetros del método se pasan como argumentos
+ * a la consulta SQL en el orden en que aparecen en la firma del método.
  * 
- * The return type of the method must be either:
- * - List<T>: Returns a list of entities that match the query
- * - Optional<T>: Returns an Optional containing the first entity that matches the query, or empty if none match
+ * El tipo de retorno del método debe ser:
+ * - List<T>: Devuelve una lista de entidades que coinciden con la consulta
+ * - Optional<T>: Devuelve un Optional que contiene la primera entidad que coincide con la consulta, o vacío si ninguna coincide
  * 
- * Example usage:
+ * Ejemplo de uso:
  * <pre>
  * {@code
- * // Query returning a list of entities
- * @SQLiteQuery(sql = "SELECT * FROM employees WHERE department = ?")
- * List<Employee> findEmployeesByDepartment(String department);
+ * // Consulta que devuelve una lista de entidades
+ * @SQLiteQuery(sql = "SELECT * FROM empleados WHERE departamento = ?")
+ * List<Empleado> buscarEmpleadosPorDepartamento(String departamento);
  * 
- * // Query returning a single entity as Optional
- * @SQLiteQuery(sql = "SELECT * FROM employees WHERE id = ?")
- * Optional<Employee> findEmployeeById(int id);
+ * // Consulta que devuelve una única entidad como Optional
+ * @SQLiteQuery(sql = "SELECT * FROM empleados WHERE id = ?")
+ * Optional<Empleado> buscarEmpleadoPorId(int id);
  * 
- * // Query with multiple parameters
- * @SQLiteQuery(sql = "SELECT * FROM employees WHERE department = ? AND salary > ?")
- * List<Employee> findEmployeesByDepartmentAndMinSalary(String department, double minSalary);
+ * // Consulta con múltiples parámetros
+ * @SQLiteQuery(sql = "SELECT * FROM empleados WHERE departamento = ? AND salario > ?")
+ * List<Empleado> buscarEmpleadosPorDepartamentoYSalarioMinimo(String departamento, double salarioMinimo);
  * 
- * // Query with IN clause
- * @SQLiteQuery(sql = "SELECT * FROM employees WHERE id IN (?)")
- * List<Employee> findEmployeesWithIdsIn(String ids); // ids is a comma-separated list, e.g. "1,2,3"
+ * // Consulta con cláusula IN
+ * @SQLiteQuery(sql = "SELECT * FROM empleados WHERE id IN (?)")
+ * List<Empleado> buscarEmpleadosConIdsEn(String ids); // ids es una lista separada por comas, ej. "1,2,3"
  * }
  * </pre>
  */
@@ -42,15 +42,23 @@ import java.lang.annotation.Target;
 public @interface SQLiteQuery {
 
     /**
-     * The SQL query to execute.
+     * La consulta SQL a ejecutar.
      * 
-     * The query can include placeholders (?) for parameters, which will be replaced
-     * with the values of the method parameters in the order they appear in the method signature.
+     * La consulta puede incluir marcadores de posición (?) para parámetros, que serán reemplazados
+     * con los valores de los parámetros del método en el orden en que aparecen en la firma del método.
      * 
-     * @return The SQL query string
+     * @return La cadena de consulta SQL
      */
     String sql();
 
-    boolean waitResult() default true;
+    /**
+     * Indica si el método espera un resultado o no
+     * 
+     * Si es true, el método ejecuta la consulta y retorna un Optional o un List con los resultados, segun lo haya establecido el desarrollador.
+     * Si es false, el método ejecutará la consulta y retorna true cuando esta haya finalizado.
+     * 
+     * @return true si el método debe esperar por el resultado, false en caso contrario
+     */
+    boolean captureResult() default true;
 
 }
