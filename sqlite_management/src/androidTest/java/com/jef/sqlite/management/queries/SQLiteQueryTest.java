@@ -8,8 +8,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Test interface for demonstrating the SQLiteQuery annotation.
- * This interface shows how to use the SQLiteQuery annotation to define custom SQL queries.
+ * Test interface for demonstrating the SQLiteQuery annotation and dynamic query methods.
+ * This interface shows how to use the SQLiteQuery annotation to define custom SQL queries
+ * and how to use dynamic query methods like existsBy*.
  */
 public interface SQLiteQueryTest extends DynamicQuery<Product> {
 
@@ -70,4 +71,41 @@ public interface SQLiteQueryTest extends DynamicQuery<Product> {
      */
     @SQLiteQuery(sql = "SELECT * FROM products WHERE active = 0")
     List<Product> findInactiveProducts();
+
+    /**
+     * Check if a product exists with the specified ID.
+     * This demonstrates using the dynamic existsBy method pattern.
+     * 
+     * @param id the ID to check for
+     * @return true if a product with the given ID exists, false otherwise
+     */
+    boolean existsById(int id);
+
+    /**
+     * Check if a product exists with the specified name.
+     * This demonstrates using the dynamic existsBy method pattern.
+     * 
+     * @param name the name to check for
+     * @return true if a product with the given name exists, false otherwise
+     */
+    boolean existsByName(String name);
+
+    /**
+     * Check if an active product exists.
+     * This demonstrates using the dynamic existsBy method pattern with a boolean field.
+     * 
+     * @param active the active status to check for
+     * @return true if a product with the given active status exists, false otherwise
+     */
+    boolean existsByActive(boolean active);
+
+    /**
+     * Check if a product exists with the specified name and active status.
+     * This demonstrates using the dynamic existsBy method pattern with multiple fields.
+     * 
+     * @param name the name to check for
+     * @param active the active status to check for
+     * @return true if a product with the given name and active status exists, false otherwise
+     */
+    boolean existsByNameAndActive(String name, boolean active);
 }

@@ -290,7 +290,51 @@ int updatePrecioWhereNombreAndProveedor(double precio, String nombre, String pro
 int updateRolWhereDepartamentoAndAntiguedad(String rol, String departamento, int antiguedad);
 ```
 
-### 4. Consultas SQL Personalizadas
+### 4. Consultas de Existencia (Exists Queries)
+
+Las consultas de existencia permiten verificar si existen registros en la base de datos que cumplan con ciertos criterios, devolviendo un valor booleano.
+
+#### 4.1 Verificación de Existencia por Campo Específico
+
+**Patrón:** `existsBy[NombreCampo](Tipo valor)`
+
+**Ejemplos:**
+```java
+// Verificar si existe un producto con un ID específico
+boolean existsById(int id);
+
+// Verificar si existe un producto con un nombre específico
+boolean existsByNombre(String nombre);
+
+// Verificar si existen productos activos
+boolean existsByActivo(boolean activo);
+
+// Verificar si existe un usuario con un email específico
+boolean existsByEmail(String email);
+```
+
+#### 4.2 Verificación de Existencia con Múltiples Condiciones
+
+**Patrón:** `existsBy[Condicion1]And[Condicion2]...(Tipo valorCondicion1, Tipo valorCondicion2, ...)`
+
+**Ejemplos:**
+```java
+// Verificar si existe un producto con un nombre y estado específicos
+boolean existsByNombreAndActivo(String nombre, boolean activo);
+
+// Verificar si existe un producto con un precio y categoría específicos
+boolean existsByPrecioAndCategoria(double precio, String categoria);
+
+// Verificar si existe un usuario con un rol y departamento específicos
+boolean existsByRolAndDepartamento(String rol, String departamento);
+```
+
+**Notas:**
+- Las consultas de existencia devuelven `true` si se encuentra al menos un registro que cumpla con los criterios, y `false` en caso contrario.
+- Estas consultas son útiles para validaciones rápidas sin necesidad de recuperar los datos completos.
+- Internamente, estas consultas utilizan `COUNT(*)` para optimizar el rendimiento.
+
+### 5. Consultas SQL Personalizadas
 
 **Patrón:** `@SQLiteQuery(sql = "consulta SQL")`
 

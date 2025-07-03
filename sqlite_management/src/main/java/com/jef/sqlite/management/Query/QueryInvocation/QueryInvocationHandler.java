@@ -14,7 +14,8 @@ import java.lang.reflect.Method;
  * Implementa InvocationHandler para interceptar llamadas a métodos en interfaces de consulta
  * y proporcionar implementaciones dinámicas basadas en el nombre del metodo.
  * Delega las operaciones a clases especializadas: QueryFindHandler para búsquedas, 
- * QuerySaveHandler para guardar y QueryUpdateHandler para actualizar.
+ * QuerySaveHandler para guardar, QueryUpdateHandler para actualizar y QueryExistsHandler para
+ * verificar existencia.
  *
  * @param <T> El tipo de entidad sobre la que se realizan las consultas
  */
@@ -25,11 +26,13 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
     private final QueryFindHandler<T> findHandler;
     private final QuerySaveHandler<T> saveHandler;
     private final QueryUpdateHandler<T> updateHandler;
+    private final QueryExistsHandler<T> existsHandler;
 
     /**
      * Constructor para QueryInvocationHandler.
      * Inicializa el manejador con la clase de entidad y el gestor de base de datos.
-     * Crea instancias de los manejadores especializados para operaciones de búsqueda, guardado y actualización.
+     * Crea instancias de los manejadores especializados para operaciones de búsqueda, guardado, 
+     * actualización y verificación de existencia.
      *
      * @param entityClass La clase de entidad asociada a la consulta
      * @param management El gestor de la base de datos SQLite
@@ -40,6 +43,7 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
         this.findHandler = new QueryFindHandler<>(entityClass, management);
         this.saveHandler = new QuerySaveHandler<>(entityClass, management);
         this.updateHandler = new QueryUpdateHandler<>(entityClass, management);
+        this.existsHandler = new QueryExistsHandler<>(entityClass, management);
     }
 
     /**
@@ -114,6 +118,9 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
 
             if (methodName.startsWith("updateBy"))
                 return updateHandler.updateBy(method, args);
+
+            if (methodName.startsWith("existsBy"))
+                return existsHandler.handleExistsBy(method, args);
 
             throw new UnsupportedOperationException("Method not supported: " + methodName);
         } catch (android.database.sqlite.SQLiteException e) {

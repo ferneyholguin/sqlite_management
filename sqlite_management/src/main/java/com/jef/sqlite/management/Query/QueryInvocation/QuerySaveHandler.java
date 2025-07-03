@@ -44,7 +44,7 @@ public class QuerySaveHandler<T> {
      * @return The saved entity with any auto-generated values (like auto-increment IDs)
      * @throws SQLiteException If there's an error during the save operation
      */
-    public long save(T entity) throws SQLiteException {
+    public T save(T entity) throws SQLiteException {
         if (entity == null)
             throw new SQLiteException("Cannot save null entity");
 
@@ -164,7 +164,29 @@ public class QuerySaveHandler<T> {
                 if (id == -1)
                     throw new SQLiteException("Failed to insert entity into table " + tableName);
 
-                return id;
+                // Update the ID in the entity
+                try {
+                    // Find the ID field (with @Column annotation and autoIncrement=true)
+                    for (Field field : entityClass.getDeclaredFields()) {
+                        if (field.isAnnotationPresent(Column.class)) {
+                            Column column = field.getAnnotation(Column.class);
+                            if (column.autoIncrement()) {
+                                field.setAccessible(true);
+                                // Set the ID value in the entity
+                                if (field.getType() == int.class || field.getType() == Integer.class) {
+                                    field.set(entity, (int) id);
+                                } else {
+                                    field.set(entity, id);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                } catch (IllegalAccessException e) {
+                    throw new SQLiteException("Error setting ID in entity: " + e.getMessage(), e);
+                }
+
+                return entity;
             } catch (android.database.sqlite.SQLiteException e) {
                 // Wrap Android's SQLiteException in our own SQLiteException
                 throw new SQLiteException("SQLite error: " + e.getMessage(), e);
