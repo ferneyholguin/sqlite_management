@@ -182,7 +182,7 @@ public class JoinTest {
     // Entity classes for testing
     @Table(name = "categories")
     public static class Category {
-        @Column(name = "id", isPrimaryKey = true)
+        @Column(name = "id", primaryKey = true)
         private int id;
 
         @Column(name = "name")
@@ -209,7 +209,7 @@ public class JoinTest {
 
     @Table(name = "products_with_category")
     public static class ProductWithCategory {
-        @Column(name = "id", isPrimaryKey = true, isAutoIncrement = true)
+        @Column(name = "id", primaryKey = true, autoIncrement = true)
         private int id;
 
         @Column(name = "name")

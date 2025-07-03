@@ -6,7 +6,7 @@ import com.jef.sqlite.management.interfaces.Table;
 @Table(name = "lines")
 public class Line {
 
-    @Column(name = "id", isPrimaryKey = true, isAutoIncrement = true)
+    @Column(name = "id", primaryKey = true, autoIncrement = true)
     private int id;
 
     @Column(name = "name")

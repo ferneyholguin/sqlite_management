@@ -1,18 +1,15 @@
 package com.jef.sqlite.management.Query.QueryInvocation;
 
 import android.content.ContentValues;
-import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 import com.jef.sqlite.management.SQLiteManagement;
 import com.jef.sqlite.management.exceptions.SQLiteException;
 import com.jef.sqlite.management.interfaces.Column;
-import com.jef.sqlite.management.interfaces.DynamicQuery;
 import com.jef.sqlite.management.interfaces.Join;
 import com.jef.sqlite.management.interfaces.Table;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -106,7 +103,7 @@ public class QuerySaveHandler<T> {
             Column column = field.getAnnotation(Column.class);
             String columnName = column.name();
 
-            if (column.isAutoIncrement())
+            if (column.autoIncrement())
                 continue;
 
 

@@ -29,7 +29,7 @@ public @interface Column {
      * 
      * @return true si la columna es una clave primaria, false en caso contrario
      */
-    boolean isPrimaryKey() default false;
+    boolean primaryKey() default false;
 
     /**
      * Indica si la columna es de autoincremento.
@@ -37,14 +37,14 @@ public @interface Column {
      * 
      * @return true si la columna es de autoincremento, false en caso contrario
      */
-    boolean isAutoIncrement() default false;
+    boolean autoIncrement() default false;
 
     /**
      * Indica si la columna tiene una restricción UNIQUE.
      * 
      * @return true si la columna debe tener valores únicos, false en caso contrario
      */
-    boolean isUnique() default false;
+    boolean unique() default false;
 
     /**
      * Define el valor predeterminado para la columna.

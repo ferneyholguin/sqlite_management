@@ -12,7 +12,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -135,14 +134,14 @@ public abstract class SQLiteTable<T> {
                 if (field.isAnnotationPresent(Column.class)) {
                     hasColumn = true;
                     Column column = field.getAnnotation(Column.class);
-                    if (column.isUnique()) {
+                    if (column.unique()) {
                         isUnique = true;
                     }
                 }
                 if (field.isAnnotationPresent(Join.class)) {
                     hasJoin = true;
                     Join join = field.getAnnotation(Join.class);
-                    if (join.isUnique()) {
+                    if (join.unique()) {
                         isUnique = true;
                     }
                 }
@@ -172,7 +171,7 @@ public abstract class SQLiteTable<T> {
                     // For Column fields, we need to check if any Join annotation for the same column has isUnique=true
                     boolean joinHasUnique = false;
                     for (Field field : fields) {
-                        if (field.isAnnotationPresent(Join.class) && field.getAnnotation(Join.class).isUnique()) {
+                        if (field.isAnnotationPresent(Join.class) && field.getAnnotation(Join.class).unique()) {
                             joinHasUnique = true;
                             break;
                         }
@@ -194,13 +193,13 @@ public abstract class SQLiteTable<T> {
                             }
 
                             @Override
-                            public boolean isPrimaryKey() {
-                                return column.isPrimaryKey();
+                            public boolean primaryKey() {
+                                return column.primaryKey();
                             }
 
                             @Override
-                            public boolean isAutoIncrement() {
-                                return column.isAutoIncrement();
+                            public boolean autoIncrement() {
+                                return column.autoIncrement();
                             }
 
                             @Override
@@ -209,7 +208,7 @@ public abstract class SQLiteTable<T> {
                             }
 
                             @Override
-                            public boolean isUnique() {
+                            public boolean unique() {
                                 return true; // Force isUnique to be true
                             }
 
@@ -237,7 +236,7 @@ public abstract class SQLiteTable<T> {
                     // If we couldn't modify the annotation and any Join has isUnique=true, add UNIQUE constraint
                     if (!columnDefinition.contains("UNIQUE") && hasJoin) {
                         for (Field field : fields) {
-                            if (field.isAnnotationPresent(Join.class) && field.getAnnotation(Join.class).isUnique()) {
+                            if (field.isAnnotationPresent(Join.class) && field.getAnnotation(Join.class).unique()) {
                                 columnDefinition += " UNIQUE";
                                 break;
                             }
@@ -247,7 +246,7 @@ public abstract class SQLiteTable<T> {
                     // For Join fields, we need to check if any Column annotation for the same column has isUnique=true
                     boolean columnHasUnique = false;
                     for (Field field : fields) {
-                        if (field.isAnnotationPresent(Column.class) && field.getAnnotation(Column.class).isUnique()) {
+                        if (field.isAnnotationPresent(Column.class) && field.getAnnotation(Column.class).unique()) {
                             columnHasUnique = true;
                             break;
                         }
@@ -284,7 +283,7 @@ public abstract class SQLiteTable<T> {
                             }
 
                             @Override
-                            public boolean isUnique() {
+                            public boolean unique() {
                                 return true; // Force isUnique to be true
                             }
 
@@ -312,7 +311,7 @@ public abstract class SQLiteTable<T> {
                     // If we couldn't modify the annotation and any Column has isUnique=true, add UNIQUE constraint
                     if (!columnDefinition.contains("UNIQUE") && hasColumn) {
                         for (Field field : fields) {
-                            if (field.isAnnotationPresent(Column.class) && field.getAnnotation(Column.class).isUnique()) {
+                            if (field.isAnnotationPresent(Column.class) && field.getAnnotation(Column.class).unique()) {
                                 columnDefinition += " UNIQUE";
                                 break;
                             }
@@ -381,10 +380,10 @@ public abstract class SQLiteTable<T> {
         if (!column.permitNull())
             instruction.append(" NOT NULL");
 
-        if (column.isPrimaryKey())
+        if (column.primaryKey())
             instruction.append(" PRIMARY KEY");
 
-        if (column.isAutoIncrement())
+        if (column.autoIncrement())
             instruction.append(" AUTOINCREMENT");
 
         // Add UNIQUE constraint if the column itself is marked as unique
@@ -393,14 +392,14 @@ public abstract class SQLiteTable<T> {
         for (Field joinField : entityClass.getDeclaredFields()) {
             if (joinField.isAnnotationPresent(Join.class)) {
                 Join join = joinField.getAnnotation(Join.class);
-                if (join.isUnique() && join.source().equals(column.name())) {
+                if (join.unique() && join.source().equals(column.name())) {
                     isUniqueJoinSource = true;
                     break;
                 }
             }
         }
 
-        if ((column.isUnique() || isUniqueJoinSource) && !column.isPrimaryKey())
+        if ((column.unique() || isUniqueJoinSource) && !column.primaryKey())
             instruction.append(" UNIQUE");
 
         instruction.append(getDefaultValue(column, type));
@@ -445,7 +444,7 @@ public abstract class SQLiteTable<T> {
         if (!join.permitNull())
             instruction.append(" NOT NULL");
 
-        if (join.isUnique())
+        if (join.unique())
             instruction.append(" UNIQUE");
 
         if (join.defaultValue() != null && !join.defaultValue().isEmpty()) {

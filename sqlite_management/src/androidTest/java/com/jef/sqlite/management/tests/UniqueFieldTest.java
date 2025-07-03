@@ -134,7 +134,7 @@ public class UniqueFieldTest {
     // Entity classes for testing
     @Table(name = "categories")
     public static class Category {
-        @Column(name = "id", isPrimaryKey = true)
+        @Column(name = "id", primaryKey = true)
         private int id;
 
         @Column(name = "name")
@@ -161,14 +161,14 @@ public class UniqueFieldTest {
 
     @Table(name = "products_with_unique_code")
     public static class ProductWithUniqueCode {
-        @Column(name = "id", isPrimaryKey = true, isAutoIncrement = true)
+        @Column(name = "id", primaryKey = true, autoIncrement = true)
         private int id;
 
         @Column(name = "name")
         private String name;
 
         // This column has a unique constraint
-        @Column(name = "code", isUnique = true)
+        @Column(name = "code", unique = true)
         private String code;
 
         @Column(name = "category_id")
@@ -222,7 +222,7 @@ public class UniqueFieldTest {
 
     @Table(name = "products_with_unique_category")
     public static class ProductWithUniqueCategory {
-        @Column(name = "id", isPrimaryKey = true, isAutoIncrement = true)
+        @Column(name = "id", primaryKey = true, autoIncrement = true)
         private int id;
 
         @Column(name = "name")
@@ -232,7 +232,7 @@ public class UniqueFieldTest {
         private int categoryId;
 
         // This join has a unique constraint
-        @Join(targetName = "category_id", relationShip = Category.class, source = "id", isUnique = true)
+        @Join(targetName = "category_id", relationShip = Category.class, source = "id", unique = true)
         private Category category;
 
         public ProductWithUniqueCategory() {}

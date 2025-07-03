@@ -44,7 +44,7 @@ public @interface Join {
      * 
      * @return true si la relación debe ser única, false en caso contrario
      */
-    boolean isUnique() default false;
+    boolean unique() default false;
 
     /**
      * Indica si la relación permite valores nulos.
