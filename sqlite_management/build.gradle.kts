@@ -1,15 +1,14 @@
 plugins {
-    alias(libs.plugins.android.library)  // Asegúrate de que sea 'android.library'
+    alias(libs.plugins.android.library)
     id("maven-publish")
 }
 
 android {
     namespace = "com.jef.sqlite.management"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 24
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }
@@ -28,32 +27,37 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
+    // Este bloque es esencial: garantiza que el componente "release" esté disponible para publishing
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
 }
 
-// Configuración de la publicación en Maven
 afterEvaluate {
-    publishing {
+    extensions.configure<PublishingExtension>("publishing") {
         publications {
             create<MavenPublication>("release") {
-                from(components["androidLibrary"])
+                // Esto ahora sí funcionará gracias al bloque `singleVariant("release")` arriba
+                from(components["release"])
 
                 groupId = "com.github.ferneyholguin"
                 artifactId = "sqlite_management"
                 version = "1.0.7"
 
-                // Agregar metadatos POM para JitPack
                 pom {
                     name.set("SQLite Management")
                     description.set("Android SQLite management library")
                     url.set("https://github.com/ferneyholguin/sqlite_management")
-
                     licenses {
                         license {
                             name.set("The Apache License, Version 2.0")
                             url.set("http://www.apache.org/licenses/LICENSE-2.0.txt")
                         }
                     }
-
                     developers {
                         developer {
                             id.set("ferneyholguin")
