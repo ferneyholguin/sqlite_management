@@ -386,6 +386,94 @@ List<Linea> findAll();
 Optional<Linea> findById(int id);
 ```
 
+## Validación de Entidades
+
+La biblioteca proporciona funcionalidad para validar entidades antes de insertarlas en la base de datos, asegurando que los datos sean correctos y cumplan con las restricciones definidas.
+
+### Validación de Campos Obligatorios y Únicos
+
+La biblioteca proporciona dos formas de validar entidades:
+
+#### 1. Usando el método `validate` de la interfaz `DynamicQuery`
+
+La interfaz `DynamicQuery` incluye un método `validate` que permite validar entidades directamente a través de la interfaz de consulta:
+
+```java
+// Crear un producto para validar
+Producto producto = new Producto();
+producto.setNombre("Smartphone XYZ");
+producto.setPrecio(599.99);
+
+try {
+    // Validar el producto antes de guardarlo
+    boolean esValido = productoQuery.validate(producto);
+    if (esValido) {
+        // El producto es válido, proceder a guardarlo
+        productoQuery.save(producto);
+    }
+} catch (SQLiteException e) {
+    // La validación falló, manejar el error
+    System.err.println("Error de validación: " + e.getMessage());
+}
+```
+
+#### 2. Usando la clase `QueryValidatorHandler` directamente
+
+Para casos más específicos, también se puede utilizar la clase `QueryValidatorHandler` directamente:
+
+```java
+// Crear una instancia del validador
+QueryValidatorHandler<Producto> validador = new QueryValidatorHandler<>(Producto.class, baseDeDatos);
+
+// Crear un producto para validar
+Producto producto = new Producto();
+producto.setNombre("Smartphone XYZ");
+producto.setPrecio(599.99);
+
+try {
+    // Validar el producto antes de guardarlo
+    boolean esValido = validador.validateEntity(producto);
+    if (esValido) {
+        // El producto es válido, proceder a guardarlo
+        productoQuery.save(producto);
+    }
+} catch (SQLiteException e) {
+    // La validación falló, manejar el error
+    System.err.println("Error de validación: " + e.getMessage());
+}
+```
+
+En ambos casos, la validación verifica:
+
+1. Que la entidad no sea nula
+2. Que todos los campos marcados como no nulos (`permitNull = false`) tengan valores
+3. Para campos únicos (`unique = true`), que no existan registros con el mismo valor en la base de datos
+4. Que las relaciones requeridas (campos con anotación `@Join` y `permitNull = false`) estén presentes
+
+### Definición de Restricciones en Entidades
+
+Para que la validación funcione correctamente, es necesario definir las restricciones en los campos de la entidad:
+
+```java
+@Table(name = "productos")
+public class Producto {
+    @Column(name = "id", primaryKey = true, autoIncrement = true)
+    private int id;
+
+    @Column(name = "nombre", permitNull = false, unique = true)
+    private String nombre;
+
+    @Column(name = "precio", defaultValue = "0.0")
+    private double precio;
+
+    // Getters y setters
+}
+```
+
+En este ejemplo:
+- El campo `nombre` es obligatorio (`permitNull = false`) y debe ser único (`unique = true`)
+- El campo `precio` tiene un valor predeterminado de 0.0
+
 ## Notas Importantes
 
 1. Los nombres de los métodos deben seguir exactamente los patrones descritos para que el sistema pueda interpretarlos correctamente.
@@ -393,6 +481,7 @@ Optional<Linea> findById(int id);
 3. Las consultas con joins se manejan automáticamente cuando se recuperan entidades, siempre que las relaciones estén correctamente definidas con la anotación `@Join`.
 4. Las consultas de guardado manejan automáticamente las relaciones, guardando primero las entidades relacionadas si es necesario.
 5. Las consultas de actualización no actualizan las claves primarias.
+6. Es recomendable validar las entidades antes de guardarlas para evitar errores de restricción en la base de datos.
 
 ## Licencia
 

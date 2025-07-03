@@ -27,6 +27,7 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
     private final QuerySaveHandler<T> saveHandler;
     private final QueryUpdateHandler<T> updateHandler;
     private final QueryExistsHandler<T> existsHandler;
+    private final QueryValidatorHandler<T> validatorHandler;
 
     /**
      * Constructor para QueryInvocationHandler.
@@ -44,6 +45,7 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
         this.saveHandler = new QuerySaveHandler<>(entityClass, management);
         this.updateHandler = new QueryUpdateHandler<>(entityClass, management);
         this.existsHandler = new QueryExistsHandler<>(entityClass, management);
+        this.validatorHandler = new QueryValidatorHandler<>(entityClass, management);
     }
 
     /**
@@ -81,6 +83,17 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
                     return executeCustomQuery(method, args);
                 }
 
+            }
+
+            if (methodName.equals("validate")) {
+                if (args == null || args.length == 0 || args[0] == null)
+                    throw new SQLiteException("Entity is required for save method");
+
+                try {
+                    return validatorHandler.validateEntity((T) args[0]);
+                } catch (ClassCastException e) {
+                    throw new SQLiteException("Entity must be of type " + entityClass.getName());
+                }
             }
 
             // Operaciones de guardado

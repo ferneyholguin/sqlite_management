@@ -99,4 +99,13 @@ public class TableProducts extends SQLiteTable<Product>{
     public int updateProductByName(android.content.ContentValues values, String name) {
         return query().updateByName(values, name);
     }
+
+    /**
+     * Validate a product against database constraints
+     * @param product the product to validate
+     * @return true if the product is valid, false otherwise
+     */
+    public boolean validateProduct(Product product) {
+        return query().validate(product);
+    }
 }

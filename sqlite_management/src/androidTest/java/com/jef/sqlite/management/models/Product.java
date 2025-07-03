@@ -9,7 +9,7 @@ public class Product {
 
     @Column(name = "id", primaryKey = true, autoIncrement = true)
     private int id;
-    @Column(name = "name")
+    @Column(name = "name", permitNull = false, unique = true)
     private String name;
     @Column(name = "active")
     private boolean active;
