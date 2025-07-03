@@ -46,7 +46,7 @@ afterEvaluate {
 
                 groupId = "com.github.ferneyholguin"
                 artifactId = "sqlite_management"
-                version = "1.0.7"
+                version = "1.0.8"
 
                 pom {
                     name.set("SQLite Management")
