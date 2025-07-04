@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "com.jef.sqlite_management"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.jef.sqlite_management"
