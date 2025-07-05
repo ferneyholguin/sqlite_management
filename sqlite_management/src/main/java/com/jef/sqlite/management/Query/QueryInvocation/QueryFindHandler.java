@@ -212,7 +212,7 @@ public class QueryFindHandler<T> {
         try {
             Cursor cursor = db.rawQuery(sql, createArgs(args));
             while (cursor.moveToNext())
-                results.add(getResultCursor(cursor));
+                results.add((T) getResultCursor(cursor, entityClass));
 
             cursor.close();
         } catch (Exception ex) {
@@ -238,7 +238,7 @@ public class QueryFindHandler<T> {
         try {
             Cursor cursor = db.rawQuery(sql, selectionArgs);
             if (cursor.moveToFirst())
-                return Optional.of(getResultCursor(cursor));
+                return Optional.of((T) getResultCursor(cursor, entityClass));
         } catch (Exception ex) {
             throw new SQLiteException("Error executing query: " + ex.getMessage(), ex);
         } finally {
@@ -255,9 +255,9 @@ public class QueryFindHandler<T> {
      * @return An instance of the entity populated with data from the cursor
      * @throws SQLiteException If there's an error creating the entity
      */
-    public T getResultCursor(Cursor cursor) {
+    public Object getResultCursor(Cursor cursor, Class<?> entityClass) {
         try {
-            T instance = entityClass.newInstance();
+            Object instance = entityClass.newInstance();
 
             // Process all fields
             for (Field field : entityClass.getDeclaredFields()) {
@@ -354,17 +354,10 @@ public class QueryFindHandler<T> {
         // Execute the query
         SQLiteDatabase db = management.getReadableDatabase();
         try {
-            Cursor cursorJoin = db.rawQuery(sql, new String[] { targetNameValue.toString() });
+            Cursor cursorJoin = db.rawQuery(sql, new String[] { targetNameValue });
             if (cursorJoin.moveToFirst()) {
-                // Create an instance of the relationship class
-                Object relatedInstance = relationshipClass.newInstance();
 
-                // Process all fields in the related entity
-                for (Field relatedField : relationshipClass.getDeclaredFields()) {
-                    if (relatedField.isAnnotationPresent(Column.class)) {
-                        processColumnField(cursorJoin, relatedInstance, relatedField);
-                    }
-                }
+                Object relatedInstance = getResultCursor(cursorJoin, relationshipClass);
 
                 // Set the related instance in the main entity
                 field.setAccessible(true);
