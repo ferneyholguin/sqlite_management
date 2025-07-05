@@ -3,11 +3,9 @@ package com.jef.sqlite.management.Query.QueryInvocation;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
-import com.jef.sqlite.management.Query.QueryFactory;
 import com.jef.sqlite.management.SQLiteManagement;
 import com.jef.sqlite.management.exceptions.SQLiteException;
 import com.jef.sqlite.management.interfaces.Column;
-import com.jef.sqlite.management.interfaces.DynamicQuery;
 import com.jef.sqlite.management.interfaces.Join;
 import com.jef.sqlite.management.interfaces.SQLiteQuery;
 import com.jef.sqlite.management.interfaces.Table;
@@ -18,13 +16,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /**
  * Handler class for find operations in the query system.
  * This class contains all methods related to finding and querying entities.
+ * Supports dynamic queries with AND, OR, and OrderBy clauses.
  * 
  * @param <T> The entity type being queried
  */
@@ -34,6 +34,18 @@ public class QueryFindHandler<T> {
     private final SQLiteManagement management;
     private final String tableName;
     private final Map<String, String> fieldToColumn;
+
+    // Constants for query parsing
+    private static final String AND_OPERATOR = "And";
+    private static final String OR_OPERATOR = "Or";
+    private static final String ORDER_BY_CLAUSE = "OrderBy";
+    private static final String ASC_SUFFIX = "Asc";
+    private static final String DESC_SUFFIX = "Desc";
+
+    // Patterns for method name parsing
+    private static final Pattern FIND_PATTERN = Pattern.compile("^find(All)?(By)?(.*)$");
+    private static final Pattern ORDER_BY_PATTERN = Pattern.compile("(.*)OrderBy([A-Z][a-zA-Z0-9]*)(Asc|Desc)?$");
+
 
     /**
      * Constructor for QueryFindHandler
@@ -50,6 +62,234 @@ public class QueryFindHandler<T> {
         for (Field field : entityClass.getDeclaredFields())
             if (field.isAnnotationPresent(Column.class))
                 fieldToColumn.put(field.getName().toLowerCase(), field.getAnnotation(Column.class).name());
+    }
+
+    /**
+     * Main method to handle all find operations.
+     * This method parses the method name and delegates to the appropriate handler.
+     * 
+     * @param method The method being invoked
+     * @param args The arguments passed to the method
+     * @return The result of the query (entity, list of entities, or Optional)
+     * @throws SQLiteException If there's an error in the query
+     */
+    public Object handleFindMethod(Method method, Object[] args) {
+        // Check for SQLiteQuery annotation first
+        if (method.isAnnotationPresent(SQLiteQuery.class)) {
+            return executeCustomQuery(method, args);
+        }
+
+        String methodName = method.getName();
+
+        // Handle findAll method directly
+        if (methodName.equals("findAll"))
+            return findAll();
+
+        // For backward compatibility with existing methods
+        if (methodName.matches("findAllOrderBy\\w+(Asc|Desc)?"))
+            return findAllOrderBy(method);
+
+        if (methodName.matches("findAllBy\\w+OrderBy\\w+(Asc|Desc)?") && args != null && args.length > 0)
+            return findAllByFieldOrderByField(method, args);
+
+        if (methodName.startsWith("findBy") && !methodName.contains(AND_OPERATOR) && !methodName.contains(OR_OPERATOR))
+            return createFindBy(method, args);
+
+        if (methodName.startsWith("findAllBy") && !methodName.contains(ORDER_BY_CLAUSE) && 
+            !methodName.contains(AND_OPERATOR) && !methodName.contains(OR_OPERATOR))
+            return createFindAllBy(method, args);
+
+
+        // For new dynamic queries
+        // Parse the method name to extract query components
+        QueryComponents components = parseMethodName(methodName);
+
+        // Build and execute the query
+        return executeQuery(components, method, args);
+    }
+
+    /**
+     * Parses a method name to extract query components.
+     * 
+     * @param methodName The name of the method to parse
+     * @return A QueryComponents object containing the parsed components
+     * @throws SQLiteException If the method name is invalid
+     */
+    private QueryComponents parseMethodName(String methodName) {
+        Matcher findMatcher = FIND_PATTERN.matcher(methodName);
+        if (!findMatcher.matches()) {
+            throw new SQLiteException("Invalid method name format: " + methodName);
+        }
+
+        boolean findAll = findMatcher.group(1) != null;
+        String conditions = findMatcher.group(3);
+
+        QueryComponents components = new QueryComponents(findAll);
+
+        // Check for OrderBy clause
+        Matcher orderByMatcher = ORDER_BY_PATTERN.matcher(methodName);
+        if (orderByMatcher.matches()) {
+            String orderByField = orderByMatcher.group(2);
+            String direction = orderByMatcher.group(3);
+
+            // Convert to camelCase for field lookup
+            String orderByFieldLower = Character.toLowerCase(orderByField.charAt(0)) + orderByField.substring(1);
+
+            // Check if the field exists
+            String orderColumn = fieldToColumn.get(orderByFieldLower);
+            if (orderColumn == null) {
+                throw new SQLiteException("Order field not found: " + orderByFieldLower);
+            }
+
+            components.setOrderBy(orderColumn, direction == null || !direction.equals(DESC_SUFFIX));
+
+            // Remove OrderBy clause from conditions
+            conditions = orderByMatcher.group(1);
+            if (conditions.startsWith("By")) {
+                conditions = conditions.substring(2);
+            }
+        }
+
+        // If there are no conditions, return the components
+        if (conditions.isEmpty() || !conditions.startsWith("By")) {
+            return components;
+        }
+
+        // Remove the "By" prefix
+        conditions = conditions.substring(2);
+
+        // Parse conditions (fields and operators)
+        parseConditions(conditions, components);
+
+        return components;
+    }
+
+    /**
+     * Parses the conditions part of a method name and adds them to the QueryComponents.
+     * 
+     * @param conditions The conditions part of the method name
+     * @param components The QueryComponents object to add the conditions to
+     * @throws SQLiteException If a field doesn't exist
+     */
+    private void parseConditions(String conditions, QueryComponents components) {
+        // Split by "And" and "Or" operators
+        List<String> conditionParts = new ArrayList<>();
+        List<String> operators = new ArrayList<>();
+
+        int startIndex = 0;
+        for (int i = 1; i < conditions.length(); i++) {
+            if (i + 2 < conditions.length() && 
+                Character.isUpperCase(conditions.charAt(i)) && 
+                conditions.substring(i, i + 3).equals(AND_OPERATOR)) {
+                conditionParts.add(conditions.substring(startIndex, i));
+                operators.add(AND_OPERATOR);
+                startIndex = i + 3;
+                i += 2;
+            } else if (i + 1 < conditions.length() && 
+                       Character.isUpperCase(conditions.charAt(i)) && 
+                       conditions.substring(i, i + 2).equals(OR_OPERATOR)) {
+                conditionParts.add(conditions.substring(startIndex, i));
+                operators.add(OR_OPERATOR);
+                startIndex = i + 2;
+                i += 1;
+            }
+        }
+
+        // Add the last part
+        conditionParts.add(conditions.substring(startIndex));
+
+        // Process each condition
+        int argIndex = 0;
+        for (int i = 0; i < conditionParts.size(); i++) {
+            String condition = conditionParts.get(i);
+            String operator = i < operators.size() ? operators.get(i) : null;
+
+            // Convert to camelCase for field lookup
+            String fieldLower = Character.toLowerCase(condition.charAt(0)) + condition.substring(1);
+
+            // Check if the field exists
+            String column = fieldToColumn.get(fieldLower);
+            if (column == null) {
+                throw new SQLiteException("Field not found: " + fieldLower);
+            }
+
+            components.addCondition(column, operator, argIndex++);
+        }
+    }
+
+    /**
+     * Builds and executes a query based on the parsed components.
+     * 
+     * @param components The parsed query components
+     * @param method The method being invoked
+     * @param args The arguments passed to the method
+     * @return The result of the query
+     * @throws SQLiteException If there's an error in the query
+     */
+    private Object executeQuery(QueryComponents components, Method method, Object[] args) {
+        if (args == null) {
+            args = new Object[0];
+        }
+
+        // Validate that we have enough arguments for the conditions
+        int requiredArgs = components.getConditions().size();
+        if (args.length < requiredArgs) {
+            throw new SQLiteException("Not enough arguments for query. Expected " + requiredArgs + 
+                                     " but got " + args.length);
+        }
+
+        StringBuilder sql = new StringBuilder("SELECT * FROM ").append(tableName);
+
+        // Add WHERE clause if there are conditions
+        List<QueryCondition> conditions = components.getConditions();
+        if (!conditions.isEmpty()) {
+            sql.append(" WHERE ");
+
+            for (int i = 0; i < conditions.size(); i++) {
+                QueryCondition condition = conditions.get(i);
+
+                if (i > 0) {
+                    // Add the operator (AND/OR)
+                    String previousOperator = conditions.get(i - 1).getOperator();
+                    if (OR_OPERATOR.equals(previousOperator)) {
+                        sql.append(" OR ");
+                    } else {
+                        sql.append(" AND ");
+                    }
+                }
+
+                sql.append(condition.getField()).append(" = ?");
+            }
+        }
+
+        // Add ORDER BY clause if specified
+        if (components.hasOrderBy()) {
+            sql.append(" ORDER BY ")
+               .append(components.getOrderByField())
+               .append(components.isOrderAscending() ? " ASC" : " DESC");
+        }
+
+        // Execute the query
+        String sqlQuery = sql.toString();
+
+        // Create an array of arguments in the correct order for the query
+        Object[] queryArgs = new Object[conditions.size()];
+        for (int i = 0; i < conditions.size(); i++) {
+            QueryCondition condition = conditions.get(i);
+            int argIndex = condition.getArgIndex();
+            if (argIndex < args.length) {
+                queryArgs[i] = args[argIndex];
+            }
+        }
+
+        // Check the return type of the method
+        Class<?> returnType = method.getReturnType();
+
+        if (components.hasFindAll() || List.class.isAssignableFrom(returnType)) {
+            return queryList(sqlQuery, queryArgs);
+        } else {
+            return queryItem(sqlQuery, createArgs(queryArgs));
+        }
     }
 
     /**
@@ -137,7 +377,7 @@ public class QueryFindHandler<T> {
 
         // Extract the field name
         String field = methodName.substring("findAllOrderBy".length());
-        String fieldLower = Character.toLowerCase(field.charAt(0)) + field.substring(1);
+        String fieldLower = field.toLowerCase();
 
         String column = fieldToColumn.get(fieldLower);
         if (column == null)
@@ -433,6 +673,84 @@ public class QueryFindHandler<T> {
     	}
 
     	return result;
+    }
+
+
+
+    /**
+     * Class to hold the components of a query parsed from a method name.
+     */
+    private static class QueryComponents {
+
+        private final boolean findAll;
+        private final List<QueryCondition> conditions = new ArrayList<>();
+        private String orderByField;
+        private boolean orderAscending = true;
+
+        public QueryComponents(boolean findAll) {
+            this.findAll = findAll;
+        }
+
+        public void addCondition(String field, String operator, int argIndex) {
+            conditions.add(new QueryCondition(field, operator, argIndex));
+        }
+
+        public void setOrderBy(String field, boolean ascending) {
+            this.orderByField = field;
+            this.orderAscending = ascending;
+        }
+
+        public boolean hasFindAll() {
+            return findAll;
+        }
+
+        public List<QueryCondition> getConditions() {
+            return conditions;
+        }
+
+        public boolean hasOrderBy() {
+            return orderByField != null;
+        }
+
+        public String getOrderByField() {
+            return orderByField;
+        }
+
+        public boolean isOrderAscending() {
+            return orderAscending;
+        }
+
+
+    }
+
+    /**
+     * Class to hold a single condition in a query.
+     */
+    private static class QueryCondition {
+
+        private final String field;
+        private final String operator;
+        private final int argIndex;
+
+        public QueryCondition(String field, String operator, int argIndex) {
+            this.field = field;
+            this.operator = operator;
+            this.argIndex = argIndex;
+        }
+
+        public String getField() {
+            return field;
+        }
+
+        public String getOperator() {
+            return operator;
+        }
+
+        public int getArgIndex() {
+            return argIndex;
+        }
+
+
     }
 
 

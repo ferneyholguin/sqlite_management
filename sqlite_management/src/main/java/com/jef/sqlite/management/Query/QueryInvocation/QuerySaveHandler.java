@@ -168,19 +168,22 @@ public class QuerySaveHandler<T> {
                 try {
                     // Find the ID field (with @Column annotation and autoIncrement=true)
                     for (Field field : entityClass.getDeclaredFields()) {
-                        if (field.isAnnotationPresent(Column.class)) {
-                            Column column = field.getAnnotation(Column.class);
-                            if (column.autoIncrement()) {
-                                field.setAccessible(true);
-                                // Set the ID value in the entity
-                                if (field.getType() == int.class || field.getType() == Integer.class) {
-                                    field.set(entity, (int) id);
-                                } else {
-                                    field.set(entity, id);
-                                }
-                                break;
-                            }
+                        if (!field.isAnnotationPresent(Column.class))
+                            continue;
+
+                        Column column = field.getAnnotation(Column.class);
+                        if (!column.autoIncrement())
+                            continue;
+
+                        field.setAccessible(true);
+                        // Set the ID value in the entity
+                        if (field.getType() == int.class || field.getType() == Integer.class) {
+                            field.set(entity, (int) id);
+                        } else {
+                            field.set(entity, id);
                         }
+                        break;
+
                     }
                 } catch (IllegalAccessException e) {
                     throw new SQLiteException("Error setting ID in entity: " + e.getMessage(), e);

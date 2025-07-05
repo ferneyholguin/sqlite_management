@@ -109,25 +109,13 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
             }
 
             // Operaciones de búsqueda
-            if (methodName.equals("findAll"))
-                return findHandler.findAll();
-
-            if (methodName.matches("findAllOrderBy\\w+(Asc|Desc)?"))
-                // Handle methods like findAllOrderByNameAsc or findAllOrderByNameDesc
-                return findHandler.findAllOrderBy(method);
-
+            if (methodName.startsWith("find")) {
+                // Let QueryFindHandler handle all find operations
+                return findHandler.handleFindMethod(method, args);
+            }
 
             if (args == null || args.length == 0)
                 throw new SQLiteException("The args not have null o empty");
-
-            if (methodName.matches("findAllBy\\w+OrderBy\\w+(Asc|Desc)?"))
-                return findHandler.findAllByFieldOrderByField(method, args);
-
-            if (methodName.startsWith("findBy"))
-                return findHandler.createFindBy(method, args);
-
-            if (methodName.startsWith("findAllBy") && !methodName.matches("findAllBy\\w+OrderBy\\w+"))
-                return findHandler.createFindAllBy(method, args);
 
             if (methodName.startsWith("updateBy"))
                 return updateHandler.updateBy(method, args);

@@ -39,12 +39,12 @@ Luego, añade la dependencia a tu archivo `build.gradle.kts` (para Kotlin DSL) o
 ```gradle
 // Para Gradle Kotlin DSL (build.gradle.kts)
 dependencies {
-    implementation("com.github.ferneyholguin:sqlite_management:1.0.9")
+    implementation("com.github.ferneyholguin:sqlite_management:1.1.0")
 }
 
 // Para Gradle Groovy (build.gradle)
 dependencies {
-    implementation 'com.github.ferneyholguin:sqlite_management:1.0.9'
+    implementation 'com.github.ferneyholguin:sqlite_management:1.1.0'
 }
 ```
 
@@ -55,10 +55,10 @@ dependencies {
 ```java
 @Table(name = "productos")
 public class Producto {
-    @Column(name = "id", isPrimaryKey = true, isAutoIncrement = true)
+    @Column(name = "id", primaryKey = true, autoIncrement = true)
     private int id;
 
-    @Column(name = "nombre", isUnique = true, permitNull = false)
+    @Column(name = "nombre", unique = true, permitNull = false)
     private String nombre;
 
     @Column(name = "precio", defaultValue = "0.0")
@@ -93,7 +93,7 @@ public interface ProductoQuery extends DynamicQuery<Producto> {
     Producto save(Producto producto);
 
     // Consultas de actualización
-    int updatePrecioWhereNombreAndCategoriaId(double precio, String nombre, int categoriaId);
+    int updateByNombre(ContentValues values, String nombre);
 
     // Consulta SQL personalizada
     @SQLiteQuery(sql = "SELECT * FROM productos WHERE precio BETWEEN ? AND ?")
@@ -161,7 +161,9 @@ List<Producto> productosPorNombre = productoQuery.findByNombre("Smartphone XYZ")
 List<Producto> productosOrdenadosPorPrecio = productoQuery.findAllOrderByPrecioDesc();
 
 // Actualizar productos
-int filasActualizadas = productoQuery.updatePrecioWhereNombreAndCategoriaId(499.99, "Smartphone XYZ", 1);
+ContentValues values = new ContentValues();
+values.put("precio", 499.99);
+int filasActualizadas = productoQuery.updateByNombre(values, "Smartphone XYZ");
 
 // Consulta SQL personalizada
 List<Producto> productosEnRango = productoQuery.findProductosEnRangoDePrecio(100.0, 1000.0);
@@ -261,34 +263,24 @@ Usuario save(Usuario usuario);
 
 ### 3. Consultas de Actualización (Update Queries)
 
-#### 3.1 Actualización por Campo Específico
-
-**Patrón:** `updateBy[NombreCampo](T entidad, Tipo valorWhere)`
+**Patrón:** `updateBy[NombreCampo](ContentValues values, Tipo valorWhere)`
 
 **Ejemplos:**
 ```java
 // Actualizar un producto por ID
-int updateById(Producto producto, int id);
+int updateById(ContentValues values, int id);
 
 // Actualizar un usuario por email
-int updateByEmail(Usuario usuario, String email);
+int updateByEmail(ContentValues values, String email);
+
+// Actualizar un producto por nombre
+int updateByNombre(ContentValues values, String nombre);
 ```
 
-#### 3.2 Actualización de Campo con Múltiples Condiciones
-
-**Patrón:** `update[Campo]Where[Condicion1]And[Condicion2]...(Tipo valorCampo, Tipo valorCondicion1, Tipo valorCondicion2, ...)`
-
-**Ejemplos:**
-```java
-// Actualizar el estado de productos por ubicación y categoría
-int updateEstadoWhereUbicacionAndCategoria(boolean estado, String ubicacion, String categoria);
-
-// Actualizar el precio de productos por nombre y proveedor
-int updatePrecioWhereNombreAndProveedor(double precio, String nombre, String proveedor);
-
-// Actualizar el rol de usuarios por departamento y antigüedad
-int updateRolWhereDepartamentoAndAntiguedad(String rol, String departamento, int antiguedad);
-```
+**Notas:**
+- El primer parámetro debe ser un objeto ContentValues que contiene los campos a actualizar y sus nuevos valores.
+- El segundo parámetro (y siguientes, si hay más) son los valores para las condiciones WHERE.
+- El método devuelve el número de filas actualizadas.
 
 ### 4. Consultas de Existencia (Exists Queries)
 
@@ -361,7 +353,7 @@ Las relaciones entre tablas se definen utilizando la anotación `@Join` en los c
 ```java
 @Table(name = "lineas")
 public class Linea {
-    @Column(name = "id", isPrimaryKey = true, isAutoIncrement = true)
+    @Column(name = "id", primaryKey = true, autoIncrement = true)
     private int id;
 
     @Column(name = "cantidad")
