@@ -9,6 +9,22 @@ import java.util.Optional;
 public interface ProductQuery extends DynamicQuery<Product> {
 
     /**
+     * Find products by name and active status
+     * @param name the name to search for
+     * @param active the active status to search for
+     * @return a list of products with the given name and active status
+     */
+    List<Product> findByNameAndActive(String name, boolean active);
+
+    /**
+     * Find products by name or active status
+     * @param name the name to search for
+     * @param active the active status to search for
+     * @return a list of products with the given name or active status
+     */
+    List<Product> findByNameOrActive(String name, boolean active);
+
+    /**
      * Find products by name
      * @param name the name to search for
      * @return a list of products with the given name
@@ -70,4 +86,54 @@ public interface ProductQuery extends DynamicQuery<Product> {
      * @return the number of rows updated
      */
     int updateByName(android.content.ContentValues values, String name);
+
+    /**
+     * Update product name by id
+     * @param name the new name
+     * @param id the id of the product to update
+     * @return the number of rows updated
+     */
+    int updateNameWhereId(String name, int id);
+
+    /**
+     * Update product active status by id
+     * @param active the new active status
+     * @param id the id of the product to update
+     * @return the number of rows updated
+     */
+    int updateActiveWhereId(boolean active, int id);
+
+    /**
+     * Update product name and active status by id
+     * @param name the new name
+     * @param active the new active status
+     * @param id the id of the product to update
+     * @return the number of rows updated
+     */
+    int updateNameActiveWhereId(String name, boolean active, int id);
+
+    /**
+     * Update product name where line id matches
+     * @param name the new name
+     * @param lineId the line id to match
+     * @return the number of rows updated
+     */
+    int updateNameWhereLineId(String name, int lineId);
+
+    /**
+     * Update all products' name
+     * @param name the new name
+     * @return the number of rows updated
+     */
+    int updateName(String name);
+
+    /**
+     * Update product name and active status where name and line id match
+     * @param newName the new name
+     * @param newActive the new active status
+     * @param nameToMatch the name to match
+     * @param lineIdToMatch the line id to match
+     * @return the number of rows updated
+     */
+    int updateNameActiveWhereNameAndLineId(String newName, boolean newActive, String nameToMatch, int lineIdToMatch);
 }

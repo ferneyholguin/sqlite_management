@@ -9,6 +9,7 @@ import com.jef.sqlite.management.Management;
 import com.jef.sqlite.management.SQLiteTable;
 import com.jef.sqlite.management.Query.QueryFactory;
 import com.jef.sqlite.management.interfaces.Column;
+import com.jef.sqlite.management.interfaces.DynamicQuery;
 import com.jef.sqlite.management.interfaces.Join;
 import com.jef.sqlite.management.interfaces.Table;
 import com.jef.sqlite.management.models.Line;
@@ -269,12 +270,12 @@ public class JoinTest {
     }
 
     // Query interfaces
-    public interface CategoryQuery {
+    public interface CategoryQuery extends DynamicQuery<Category> {
         List<Category> findAll();
         Category save(Category category);
     }
 
-    public interface ProductWithCategoryQuery {
+    public interface ProductWithCategoryQuery extends DynamicQuery<ProductWithCategory> {
         List<ProductWithCategory> findAll();
         ProductWithCategory save(ProductWithCategory product);
     }
@@ -286,7 +287,7 @@ public class JoinTest {
         }
 
         private CategoryQuery query() {
-            return QueryFactory.create(CategoryQuery.class, Category.class, getManagement());
+            return QueryFactory.create(CategoryQuery.class, getManagement());
         }
 
         public List<Category> getAllCategories() {
@@ -304,7 +305,7 @@ public class JoinTest {
         }
 
         private ProductWithCategoryQuery query() {
-            return QueryFactory.create(ProductWithCategoryQuery.class, ProductWithCategory.class, getManagement());
+            return QueryFactory.create(ProductWithCategoryQuery.class, getManagement());
         }
 
         public List<ProductWithCategory> getAllProductsWithCategory() {

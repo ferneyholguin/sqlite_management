@@ -11,13 +11,13 @@
       <SelectionState runConfigName="ExistsQueryTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="ValidatorTest">
+      <SelectionState runConfigName="UpdateTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="QueryFindHandlerTestRunner">
+      <SelectionState runConfigName="AdvancedUpdateTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="SQLiteQueryDemoTest">
+      <SelectionState runConfigName="testUpdateProductNameActiveByNameAndLineId()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

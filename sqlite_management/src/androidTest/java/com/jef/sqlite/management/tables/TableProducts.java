@@ -19,7 +19,7 @@ public class TableProducts extends SQLiteTable<Product>{
     }
 
     private ProductQuery query() {
-        return QueryFactory.create(ProductQuery.class, Product.class, getManagement());
+        return QueryFactory.create(ProductQuery.class, getManagement());
     }
 
     public List<Product> getProductsByName(String name) {
@@ -101,11 +101,93 @@ public class TableProducts extends SQLiteTable<Product>{
     }
 
     /**
+     * Update product name by id
+     * @param name the new name
+     * @param id the id of the product to update
+     * @return the number of rows updated
+     */
+    public int updateProductNameById(String name, int id) {
+        return query().updateNameWhereId(name, id);
+    }
+
+    /**
+     * Update product active status by id
+     * @param active the new active status
+     * @param id the id of the product to update
+     * @return the number of rows updated
+     */
+    public int updateProductActiveById(boolean active, int id) {
+        return query().updateActiveWhereId(active, id);
+    }
+
+    /**
+     * Update product name and active status by id
+     * @param name the new name
+     * @param active the new active status
+     * @param id the id of the product to update
+     * @return the number of rows updated
+     */
+    public int updateProductNameAndActiveById(String name, boolean active, int id) {
+        return query().updateNameActiveWhereId(name, active, id);
+    }
+
+    /**
+     * Update product name where line id matches
+     * @param name the new name
+     * @param lineId the line id to match
+     * @return the number of rows updated
+     */
+    public int updateProductNameByLineId(String name, int lineId) {
+        return query().updateNameWhereLineId(name, lineId);
+    }
+
+    /**
      * Validate a product against database constraints
      * @param product the product to validate
      * @return true if the product is valid, false otherwise
      */
     public boolean validateProduct(Product product) {
         return query().validate(product);
+    }
+
+    /**
+     * Find products by name and active status
+     * @param name the name to search for
+     * @param active the active status to search for
+     * @return a list of products with the given name and active status
+     */
+    public List<Product> getProductsByNameAndActive(String name, boolean active) {
+        return query().findByNameAndActive(name, active);
+    }
+
+    /**
+     * Find products by name or active status
+     * @param name the name to search for
+     * @param active the active status to search for
+     * @return a list of products with the given name or active status
+     */
+    public List<Product> getProductsByNameOrActive(String name, boolean active) {
+        return query().findByNameOrActive(name, active);
+    }
+
+    /**
+     * Update all products' name
+     * @param name the new name
+     * @return the number of rows updated
+     */
+    public int updateAllProductsName(String name) {
+        return query().updateName(name);
+    }
+
+    /**
+     * Update product name and active status where name and line id match
+     * @param newName the new name
+     * @param newActive the new active status
+     * @param nameToMatch the name to match
+     * @param lineIdToMatch the line id to match
+     * @return the number of rows updated
+     */
+    public int updateProductNameActiveByNameAndLineId(String newName, boolean newActive, String nameToMatch, int lineIdToMatch) {
+        return query().updateNameActiveWhereNameAndLineId(newName, newActive, nameToMatch, lineIdToMatch);
     }
 }

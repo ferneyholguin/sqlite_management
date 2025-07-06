@@ -125,4 +125,103 @@ public class UpdateTest {
         products = productTable.getProductsByName("Product 2");
         assertTrue("Products with name 'Product 2' should no longer exist", products.isEmpty());
     }
+
+    @Test
+    public void testUpdateNameWhereId() {
+        // Get a product to update
+        Optional<Product> productOpt = productTable.getProductById(1);
+        assertTrue("Product with ID 1 should exist", productOpt.isPresent());
+
+        Product product = productOpt.get();
+        assertEquals("Product 1", product.getName());
+
+        // Update the product name
+        int rowsUpdated = productTable.updateProductNameById("Updated Product Name", 1);
+
+        // Verify update was successful
+        assertEquals("Should update 1 row", 1, rowsUpdated);
+
+        // Verify the product was updated
+        productOpt = productTable.getProductById(1);
+        assertTrue("Product with ID 1 should still exist", productOpt.isPresent());
+
+        product = productOpt.get();
+        assertEquals("Updated Product Name", product.getName());
+    }
+
+    @Test
+    public void testUpdateActiveWhereId() {
+        // Get a product to update
+        Optional<Product> productOpt = productTable.getProductById(1);
+        assertTrue("Product with ID 1 should exist", productOpt.isPresent());
+
+        Product product = productOpt.get();
+        assertTrue("Product should be active by default", product.isActive());
+
+        // Update the product active status
+        int rowsUpdated = productTable.updateProductActiveById(false, 1);
+
+        // Verify update was successful
+        assertEquals("Should update 1 row", 1, rowsUpdated);
+
+        // Verify the product was updated
+        productOpt = productTable.getProductById(1);
+        assertTrue("Product with ID 1 should still exist", productOpt.isPresent());
+
+        product = productOpt.get();
+        assertFalse("Product should now be inactive", product.isActive());
+    }
+
+    @Test
+    public void testUpdateNameActiveWhereId() {
+        // Get a product to update
+        Optional<Product> productOpt = productTable.getProductById(1);
+        assertTrue("Product with ID 1 should exist", productOpt.isPresent());
+
+        Product product = productOpt.get();
+        assertEquals("Product 1", product.getName());
+        assertTrue("Product should be active by default", product.isActive());
+
+        // Update the product name and active status
+        int rowsUpdated = productTable.updateProductNameAndActiveById("Updated Name and Status", false, 1);
+
+        // Verify update was successful
+        assertEquals("Should update 1 row", 1, rowsUpdated);
+
+        // Verify the product was updated
+        productOpt = productTable.getProductById(1);
+        assertTrue("Product with ID 1 should still exist", productOpt.isPresent());
+
+        product = productOpt.get();
+        assertEquals("Updated Name and Status", product.getName());
+        assertFalse("Product should now be inactive", product.isActive());
+    }
+
+    @Test
+    public void testUpdateNameWhereLineId() {
+        // Get products with line id 1
+        List<Product> products = productTable.getAllProducts();
+        List<Product> lineProducts = products.stream()
+                .filter(p -> p.getLine() != null && p.getLine().getId() == 1)
+                .collect(java.util.stream.Collectors.toList());
+
+        assertFalse("Products with line ID 1 should exist", lineProducts.isEmpty());
+        assertEquals("Should be 2 products with line ID 1", 2, lineProducts.size());
+
+        // Update the products
+        int rowsUpdated = productTable.updateProductNameByLineId("Updated By Line ID", 1);
+
+        // Verify update was successful
+        assertEquals("Should update 2 rows", 2, rowsUpdated);
+
+        // Verify the products were updated
+        products = productTable.getAllProducts();
+        lineProducts = products.stream()
+                .filter(p -> p.getLine() != null && p.getLine().getId() == 1)
+                .collect(java.util.stream.Collectors.toList());
+
+        for (Product p : lineProducts) {
+            assertEquals("Product name should be updated", "Updated By Line ID", p.getName());
+        }
+    }
 }

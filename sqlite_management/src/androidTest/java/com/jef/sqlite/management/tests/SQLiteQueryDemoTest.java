@@ -52,7 +52,7 @@ public class SQLiteQueryDemoTest {
         // Create the SQLiteQueryTest interface implementation
         System.out.println("[DEBUG_LOG] Creating SQLiteQueryTest implementation");
         Management management = new Management(context);
-        sqliteQueryTest = QueryFactory.create(SQLiteQueryTest.class, Product.class, management);
+        sqliteQueryTest = QueryFactory.create(SQLiteQueryTest.class, management);
 
         // Setup test data
         System.out.println("[DEBUG_LOG] Setting up test data");

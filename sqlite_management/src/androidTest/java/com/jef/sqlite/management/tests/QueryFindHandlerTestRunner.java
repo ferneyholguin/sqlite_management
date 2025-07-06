@@ -55,7 +55,7 @@ public class QueryFindHandlerTestRunner {
         // Create the QueryFindHandlerTest interface implementation
         System.out.println("[DEBUG_LOG] Creating QueryFindHandlerTest implementation");
         Management management = new Management(context);
-        queryFindHandlerTest = QueryFactory.create(QueryFindHandlerTest.class, Product.class, management);
+        queryFindHandlerTest = QueryFactory.create(QueryFindHandlerTest.class, management);
 
         // Setup test data
         System.out.println("[DEBUG_LOG] Setting up test data");

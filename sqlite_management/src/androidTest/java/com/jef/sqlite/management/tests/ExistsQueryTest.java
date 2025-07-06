@@ -49,7 +49,7 @@ public class ExistsQueryTest {
         // Create the SQLiteQueryTest interface implementation
         System.out.println("[DEBUG_LOG] Creating SQLiteQueryTest implementation");
         Management management = new Management(context);
-        sqliteQueryTest = QueryFactory.create(SQLiteQueryTest.class, Product.class, management);
+        sqliteQueryTest = QueryFactory.create(SQLiteQueryTest.class, management);
 
         // Setup test data
         System.out.println("[DEBUG_LOG] Setting up test data");
@@ -123,18 +123,18 @@ public class ExistsQueryTest {
             System.out.println("[DEBUG_LOG] Checking if product with ID 1 exists");
             boolean exists = sqliteQueryTest.existsById(1);
             System.out.println("[DEBUG_LOG] Product with ID 1 exists: " + exists);
-            
+
             // Verify the result
             assertTrue("Product with ID 1 should exist", exists);
-            
+
             // Test existsById with a non-existing ID
             System.out.println("[DEBUG_LOG] Checking if product with ID 999 exists");
             exists = sqliteQueryTest.existsById(999);
             System.out.println("[DEBUG_LOG] Product with ID 999 exists: " + exists);
-            
+
             // Verify the result
             assertFalse("Product with ID 999 should not exist", exists);
-            
+
             System.out.println("[DEBUG_LOG] testExistsById passed");
         } catch (Exception e) {
             System.out.println("[DEBUG_LOG] Exception in testExistsById: " + e.getMessage());
@@ -142,7 +142,7 @@ public class ExistsQueryTest {
             throw e;
         }
     }
-    
+
     @Test
     public void testExistsByName() {
         System.out.println("[DEBUG_LOG] Starting testExistsByName");
@@ -151,18 +151,18 @@ public class ExistsQueryTest {
             System.out.println("[DEBUG_LOG] Checking if product with name 'Product 1' exists");
             boolean exists = sqliteQueryTest.existsByName("Product 1");
             System.out.println("[DEBUG_LOG] Product with name 'Product 1' exists: " + exists);
-            
+
             // Verify the result
             assertTrue("Product with name 'Product 1' should exist", exists);
-            
+
             // Test existsByName with a non-existing name
             System.out.println("[DEBUG_LOG] Checking if product with name 'Nonexistent Product' exists");
             exists = sqliteQueryTest.existsByName("Nonexistent Product");
             System.out.println("[DEBUG_LOG] Product with name 'Nonexistent Product' exists: " + exists);
-            
+
             // Verify the result
             assertFalse("Product with name 'Nonexistent Product' should not exist", exists);
-            
+
             System.out.println("[DEBUG_LOG] testExistsByName passed");
         } catch (Exception e) {
             System.out.println("[DEBUG_LOG] Exception in testExistsByName: " + e.getMessage());
@@ -170,7 +170,7 @@ public class ExistsQueryTest {
             throw e;
         }
     }
-    
+
     @Test
     public void testExistsByActive() {
         System.out.println("[DEBUG_LOG] Starting testExistsByActive");
@@ -179,18 +179,18 @@ public class ExistsQueryTest {
             System.out.println("[DEBUG_LOG] Checking if active products exist");
             boolean exists = sqliteQueryTest.existsByActive(true);
             System.out.println("[DEBUG_LOG] Active products exist: " + exists);
-            
+
             // Verify the result
             assertTrue("Active products should exist", exists);
-            
+
             // Test existsByActive with active=false
             System.out.println("[DEBUG_LOG] Checking if inactive products exist");
             exists = sqliteQueryTest.existsByActive(false);
             System.out.println("[DEBUG_LOG] Inactive products exist: " + exists);
-            
+
             // Verify the result
             assertTrue("Inactive products should exist", exists);
-            
+
             System.out.println("[DEBUG_LOG] testExistsByActive passed");
         } catch (Exception e) {
             System.out.println("[DEBUG_LOG] Exception in testExistsByActive: " + e.getMessage());
@@ -198,7 +198,7 @@ public class ExistsQueryTest {
             throw e;
         }
     }
-    
+
     @Test
     public void testExistsByNameAndActive() {
         System.out.println("[DEBUG_LOG] Starting testExistsByNameAndActive");
@@ -207,26 +207,26 @@ public class ExistsQueryTest {
             System.out.println("[DEBUG_LOG] Checking if product with name 'Product 1' and active=true exists");
             boolean exists = sqliteQueryTest.existsByNameAndActive("Product 1", true);
             System.out.println("[DEBUG_LOG] Product with name 'Product 1' and active=true exists: " + exists);
-            
+
             // Verify the result
             assertTrue("Product with name 'Product 1' and active=true should exist", exists);
-            
+
             // Test existsByNameAndActive with a non-existing combination
             System.out.println("[DEBUG_LOG] Checking if product with name 'Product 1' and active=false exists");
             exists = sqliteQueryTest.existsByNameAndActive("Product 1", false);
             System.out.println("[DEBUG_LOG] Product with name 'Product 1' and active=false exists: " + exists);
-            
+
             // Verify the result
             assertFalse("Product with name 'Product 1' and active=false should not exist", exists);
-            
+
             // Test another existing combination
             System.out.println("[DEBUG_LOG] Checking if product with name 'Product 3' and active=false exists");
             exists = sqliteQueryTest.existsByNameAndActive("Product 3", false);
             System.out.println("[DEBUG_LOG] Product with name 'Product 3' and active=false exists: " + exists);
-            
+
             // Verify the result
             assertTrue("Product with name 'Product 3' and active=false should exist", exists);
-            
+
             System.out.println("[DEBUG_LOG] testExistsByNameAndActive passed");
         } catch (Exception e) {
             System.out.println("[DEBUG_LOG] Exception in testExistsByNameAndActive: " + e.getMessage());

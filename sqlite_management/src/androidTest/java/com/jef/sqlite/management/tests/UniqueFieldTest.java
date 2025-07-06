@@ -9,6 +9,7 @@ import com.jef.sqlite.management.Management;
 import com.jef.sqlite.management.SQLiteTable;
 import com.jef.sqlite.management.Query.QueryFactory;
 import com.jef.sqlite.management.interfaces.Column;
+import com.jef.sqlite.management.interfaces.DynamicQuery;
 import com.jef.sqlite.management.interfaces.Join;
 import com.jef.sqlite.management.interfaces.Table;
 import com.jef.sqlite.management.exceptions.SQLiteException;
@@ -277,7 +278,7 @@ public class UniqueFieldTest {
         }
 
         private CategoryQuery query() {
-            return QueryFactory.create(CategoryQuery.class, Category.class, getManagement());
+            return QueryFactory.create(CategoryQuery.class, getManagement());
         }
 
         public List<Category> getAllCategories() {
@@ -295,7 +296,7 @@ public class UniqueFieldTest {
         }
 
         private ProductWithUniqueCodeQuery query() {
-            return QueryFactory.create(ProductWithUniqueCodeQuery.class, ProductWithUniqueCode.class, getManagement());
+            return QueryFactory.create(ProductWithUniqueCodeQuery.class, getManagement());
         }
 
         public List<ProductWithUniqueCode> getAllProducts() {
@@ -313,7 +314,7 @@ public class UniqueFieldTest {
         }
 
         private ProductWithUniqueCategoryQuery query() {
-            return QueryFactory.create(ProductWithUniqueCategoryQuery.class, ProductWithUniqueCategory.class, getManagement());
+            return QueryFactory.create(ProductWithUniqueCategoryQuery.class, getManagement());
         }
 
         public List<ProductWithUniqueCategory> getAllProducts() {
@@ -326,17 +327,17 @@ public class UniqueFieldTest {
     }
 
     // Query interfaces
-    public interface CategoryQuery {
+    public interface CategoryQuery extends DynamicQuery<Category> {
         List<Category> findAll();
         Category save(Category category);
     }
 
-    public interface ProductWithUniqueCodeQuery {
+    public interface ProductWithUniqueCodeQuery extends DynamicQuery<ProductWithUniqueCode> {
         List<ProductWithUniqueCode> findAll();
         ProductWithUniqueCode save(ProductWithUniqueCode product);
     }
 
-    public interface ProductWithUniqueCategoryQuery {
+    public interface ProductWithUniqueCategoryQuery extends DynamicQuery<ProductWithUniqueCategory> {
         List<ProductWithUniqueCategory> findAll();
         ProductWithUniqueCategory save(ProductWithUniqueCategory product);
     }

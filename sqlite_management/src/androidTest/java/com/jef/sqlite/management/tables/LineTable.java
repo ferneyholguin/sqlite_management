@@ -22,7 +22,7 @@ public class LineTable extends SQLiteTable<Line> {
     }
 
     private LineQuery query() {
-        return QueryFactory.create(LineQuery.class, Line.class, getManagement());
+        return QueryFactory.create(LineQuery.class, getManagement());
     }
 
     /**

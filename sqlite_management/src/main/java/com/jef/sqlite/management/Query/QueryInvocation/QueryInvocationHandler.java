@@ -120,6 +120,9 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
             if (methodName.startsWith("updateBy"))
                 return updateHandler.updateBy(method, args);
 
+            if (methodName.startsWith("update"))
+                return updateHandler.update(method, args);
+
             if (methodName.startsWith("existsBy"))
                 return existsHandler.handleExistsBy(method, args);
 

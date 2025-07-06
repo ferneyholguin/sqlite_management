@@ -47,7 +47,7 @@ public class SQLiteExecuteTestDemo {
 
         // Create the SQLiteExecuteTest interface implementation
         Management management = new Management(context);
-        sqliteExecuteTest = QueryFactory.create(SQLiteExecuteTest.class, Product.class, management);
+        sqliteExecuteTest = QueryFactory.create(SQLiteExecuteTest.class, management);
 
         // Setup test data
         setupTestData();
