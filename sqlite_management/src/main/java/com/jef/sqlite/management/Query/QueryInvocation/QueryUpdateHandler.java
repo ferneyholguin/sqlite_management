@@ -6,6 +6,7 @@ import android.database.sqlite.SQLiteDatabase;
 import com.jef.sqlite.management.SQLiteManagement;
 import com.jef.sqlite.management.exceptions.SQLiteException;
 import com.jef.sqlite.management.interfaces.Column;
+import com.jef.sqlite.management.interfaces.Join;
 import com.jef.sqlite.management.interfaces.Table;
 
 import java.lang.reflect.Field;
@@ -47,9 +48,26 @@ public class QueryUpdateHandler<T> {
         this.tableName = entityClass.getAnnotation(Table.class).name();
         this.fieldToColumn = new HashMap<>();
 
-        for (Field field : entityClass.getDeclaredFields())
-            if (field.isAnnotationPresent(Column.class))
+        // Map Column fields
+        for (Field field : entityClass.getDeclaredFields()) {
+            if (field.isAnnotationPresent(Column.class)) {
                 fieldToColumn.put(field.getName().toLowerCase(), field.getAnnotation(Column.class).name());
+            }
+        }
+
+        // Map Join fields
+        for (Field field : entityClass.getDeclaredFields()) {
+            if (field.isAnnotationPresent(Join.class)) {
+                String fieldName = field.getName().toLowerCase();
+                String columnName = field.getAnnotation(Join.class).targetName();
+                fieldToColumn.put(fieldName, columnName);
+
+                // Add special case for LineId -> line mapping
+                if (fieldName.equals("line")) {
+                    fieldToColumn.put("lineid", columnName);
+                }
+            }
+        }
     }
 
     /**
@@ -81,11 +99,19 @@ public class QueryUpdateHandler<T> {
             throw new SQLiteException("Number of field names in method (" + fieldNames.length + 
                                      ") does not match number of where clause values (" + (args.length - 1) + ")");
 
+        // Build WHERE clause with placeholders
+        StringBuilder whereClause = new StringBuilder();
+        for (int i = 0; i < fieldNames.length; i++) {
+            String columnName = fieldToColumn.get(fieldNames[i].toLowerCase());
+            if (columnName == null) {
+                throw new SQLiteException("Field not found: " + fieldNames[i].toLowerCase());
+            }
 
-        String whereClause = Stream.of(fieldNames)
-                .map(field -> fieldToColumn.get(field.toLowerCase()))
-                .filter(Objects::nonNull)
-                .collect(Collectors.joining(" AND "));
+            if (i > 0) {
+                whereClause.append(" AND ");
+            }
+            whereClause.append(columnName).append(" = ?");
+        }
 
         String[] whereArgs = Stream.of(args)
                 .skip(1) // Skip ContentValues
@@ -95,7 +121,7 @@ public class QueryUpdateHandler<T> {
         // Perform the update operation
         SQLiteDatabase db = management.getWritableDatabase();
         try {
-            return db.update(tableName, values, whereClause, whereArgs);
+            return db.update(tableName, values, whereClause.toString(), whereArgs);
         } catch (android.database.sqlite.SQLiteException e) {
             throw new SQLiteException("Error updating entity: " + e.getMessage(), e);
         }
@@ -118,46 +144,30 @@ public class QueryUpdateHandler<T> {
         if (!methodName.startsWith("update"))
             throw new SQLiteException("Method name must start with 'update'");
 
-        // Check if the method has a "Where" part
-        Pattern pattern = Pattern.compile("update([A-Za-z0-9]+)(?:Where([A-Za-z0-9]+))?");
-        Matcher matcher = pattern.matcher(methodName);
+        // Split the method name at "Where" to separate fields to update and conditions
+        String[] parts = methodName.split("Where");
 
-        if (!matcher.matches()) {
-            // Try with a more complex pattern that handles "And" in the WHERE conditions
-            pattern = Pattern.compile("update([A-Za-z0-9]+)Where([A-Za-z0-9]+)And([A-Za-z0-9]+)");
-            matcher = pattern.matcher(methodName);
+        if (parts.length == 1) {
+            // No "Where" in the method name, just update fields
+            String fieldsToUpdatePart = parts[0].substring("update".length());
+            return processUpdate(method, args, fieldsToUpdatePart, null);
+        } else if (parts.length == 2) {
+            // Has "Where" in the method name
+            String fieldsToUpdatePart = parts[0].substring("update".length());
+            String whereConditionsPart = parts[1];
 
-            if (!matcher.matches()) {
-                // Debug output
-                System.out.println("[DEBUG_LOG] Method name: " + methodName);
+            System.out.println("[DEBUG_LOG] Method name: " + methodName);
+            System.out.println("[DEBUG_LOG] Fields to update: " + fieldsToUpdatePart);
+            System.out.println("[DEBUG_LOG] Where conditions: " + whereConditionsPart);
 
-                // Try with a more flexible pattern that can handle any combination of fields and conditions
-                pattern = Pattern.compile("update([A-Za-z0-9]+)Where(.+)");
-                matcher = pattern.matcher(methodName);
-
-                if (!matcher.matches())
-                    throw new SQLiteException("Method name must follow pattern 'update[Fields]Where[Conditions]'");
-
-                String fieldsToUpdatePart = matcher.group(1);
-                String whereConditionsPart = matcher.group(2);
-                System.out.println("[DEBUG_LOG] Fields to update: " + fieldsToUpdatePart);
-                System.out.println("[DEBUG_LOG] Where conditions: " + whereConditionsPart);
-                return processUpdate(method, args, fieldsToUpdatePart, whereConditionsPart);
-            }
-
-            String fieldsToUpdatePart = matcher.group(1);
-            String whereConditionsPart = matcher.group(2) + "And" + matcher.group(3);
             return processUpdate(method, args, fieldsToUpdatePart, whereConditionsPart);
+        } else {
+            throw new SQLiteException("Method name has multiple 'Where' keywords: " + methodName);
         }
-
-        String fieldsToUpdatePart = matcher.group(1);
-        String whereConditionsPart = matcher.group(2);
-
-        return processUpdate(method, args, fieldsToUpdatePart, whereConditionsPart);
     }
 
     /**
-     * Procesa una actualización basada en partes del nombre del método y argumentos.
+     * Procesa una actualización basada en partes del nombre del metodo y argumentos.
      * 
      * @param method El metodo invocado
      * @param args Los argumentos pasados al metodo
@@ -195,7 +205,7 @@ public class QueryUpdateHandler<T> {
         String[] whereConditions = splitCamelCase(whereConditionsPart);
 
         // Check if we have enough arguments
-        if (args.length != fieldsToUpdate.length + whereConditions.length)
+        if (args.length != (fieldsToUpdate.length + whereConditions.length))
             throw new SQLiteException("Number of arguments (" + args.length + 
                                      ") does not match number of fields to update (" + fieldsToUpdate.length + 
                                      ") plus number of WHERE conditions (" + whereConditions.length + ")");

@@ -39,12 +39,12 @@ Luego, añade la dependencia a tu archivo `build.gradle.kts` (para Kotlin DSL) o
 ```gradle
 // Para Gradle Kotlin DSL (build.gradle.kts)
 dependencies {
-    implementation("com.github.ferneyholguin:sqlite_management:1.1.1")
+    implementation("com.github.ferneyholguin:sqlite_management:1.1.2")
 }
 
 // Para Gradle Groovy (build.gradle)
 dependencies {
-    implementation 'com.github.ferneyholguin:sqlite_management:1.1.1'
+    implementation 'com.github.ferneyholguin:sqlite_management:1.1.2'
 }
 ```
 
@@ -146,7 +146,7 @@ MiBaseDeDatos baseDeDatos = new MiBaseDeDatos(context);
 TablaProductos tablaProductos = new TablaProductos(baseDeDatos);
 
 // Crear una instancia de la interfaz de consulta
-ProductoQuery productoQuery = QueryFactory.create(ProductoQuery.class, Producto.class, baseDeDatos);
+ProductoQuery productoQuery = QueryFactory.create(ProductoQuery.class, baseDeDatos);
 
 // Guardar un producto
 Producto producto = new Producto();
