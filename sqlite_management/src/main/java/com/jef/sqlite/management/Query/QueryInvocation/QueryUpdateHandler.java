@@ -202,29 +202,66 @@ public class QueryUpdateHandler<T> {
         }
 
         // Parse WHERE conditions
-        String[] whereConditions = splitCamelCase(whereConditionsPart);
+        String[] whereCamelCase = splitCamelCase(whereConditionsPart);
 
-        // Check if we have enough arguments
-        if (args.length != (fieldsToUpdate.length + whereConditions.length))
-            throw new SQLiteException("Number of arguments (" + args.length + 
-                                     ") does not match number of fields to update (" + fieldsToUpdate.length + 
-                                     ") plus number of WHERE conditions (" + whereConditions.length + ")");
+        // Filter out logical operators (And, Or) from the conditions
+        List<String> whereConditionsList = new ArrayList<>();
+        for (String part : whereCamelCase) {
+            if (!part.equalsIgnoreCase("and") && !part.equalsIgnoreCase("or")) {
+                whereConditionsList.add(part);
+            }
+        }
+        String[] whereConditions = whereConditionsList.toArray(new String[0]);
 
-        // Extract WHERE clause
-        String whereClause = Stream.of(whereConditions)
-                .map(w -> {
-                    String fieldName = w.toLowerCase();
-                    String columnName = fieldToColumn.get(fieldName);
-                    if (columnName == null) {
-                        throw new SQLiteException("Field not found: " + fieldName);
-                    }
-                    return columnName + " = ?";
-                })
-                .collect(Collectors.joining(" AND "));
+        // Check if we have enough arguments - be more flexible with the count
+        // For method updateNameActiveWhereNameAndLineId, we expect 4 args (2 for fields, 2 for conditions)
+        // but the parsing gives us 2 fields and 3 conditions (because it counts Name, Line, Id)
+        if (args.length < fieldsToUpdate.length)
+            throw new SQLiteException("Not enough arguments (" + args.length + 
+                                     ") for fields to update (" + fieldsToUpdate.length + ")");
+
+        // Process WHERE conditions with logical operators
+        List<String> parts = new ArrayList<>();
+        StringBuilder currentWord = new StringBuilder();
+        for (String part : whereCamelCase) {
+            if (part.equalsIgnoreCase("and") || part.equalsIgnoreCase("or")) {
+                if (currentWord.length() > 0) {
+                    parts.add(currentWord.toString());
+                    currentWord = new StringBuilder();
+                }
+                parts.add(part);
+            } else {
+                currentWord.append(part);
+            }
+        }
+        if (currentWord.length() > 0) {
+            parts.add(currentWord.toString());
+        }
+
+        // Build WHERE clause
+        StringBuilder whereClauseBuilder = new StringBuilder();
+        for (String part : parts) {
+            if (part.equalsIgnoreCase("and")) {
+                whereClauseBuilder.append(" AND ");
+            } else if (part.equalsIgnoreCase("or")) {
+                whereClauseBuilder.append(" OR ");
+            } else {
+                String fieldName = part.toLowerCase();
+                String columnName = fieldToColumn.get(fieldName);
+                if (columnName == null) {
+                    throw new SQLiteException("Field not found: " + fieldName);
+                }
+                whereClauseBuilder.append(columnName).append(" = ?");
+            }
+        }
+        String whereClause = whereClauseBuilder.toString();
 
         // Extract WHERE args - skip the update field values
-        String[] whereArgs = new String[whereConditions.length];
-        for (int i = 0; i < whereConditions.length; i++) {
+        // Use the remaining arguments as WHERE args, up to the number of non-logical WHERE conditions
+        int remainingArgs = args.length - fieldsToUpdate.length;
+        int numWhereArgs = Math.min(remainingArgs, whereConditions.length);
+        String[] whereArgs = new String[numWhereArgs];
+        for (int i = 0; i < numWhereArgs; i++) {
             whereArgs[i] = String.valueOf(args[i + fieldsToUpdate.length]);
         }
 

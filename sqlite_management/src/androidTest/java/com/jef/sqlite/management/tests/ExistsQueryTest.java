@@ -31,6 +31,13 @@ public class ExistsQueryTest {
     private LineTable lineTable;
     private SQLiteQueryTest sqliteQueryTest;
 
+    // Store product names with unique suffixes
+    private String product1Name;
+    private String product2Name;
+    private String product3Name;
+    private String product4Name;
+    private int product1Id;
+
     @Before
     public void setup() {
         System.out.println("[DEBUG_LOG] Starting setup");
@@ -61,31 +68,38 @@ public class ExistsQueryTest {
         try {
             System.out.println("[DEBUG_LOG] Starting setupTestData");
 
+            // Create a unique suffix for product names to avoid UNIQUE constraint violations
+            String uniqueSuffix = "_" + System.currentTimeMillis();
+            System.out.println("[DEBUG_LOG] Using unique suffix for product names: " + uniqueSuffix);
+
             // Create lines
             System.out.println("[DEBUG_LOG] Creating Line 1");
             Line line1 = new Line();
-            line1.setName("Line 1");
+            line1.setName("Line 1" + uniqueSuffix);
             line1 = lineTable.saveLine(line1);
             System.out.println("[DEBUG_LOG] Saved Line 1 with ID: " + line1.getId());
 
             System.out.println("[DEBUG_LOG] Creating Line 2");
             Line line2 = new Line();
-            line2.setName("Line 2");
+            line2.setName("Line 2" + uniqueSuffix);
             line2 = lineTable.saveLine(line2);
             System.out.println("[DEBUG_LOG] Saved Line 2 with ID: " + line2.getId());
 
             // Create products
             System.out.println("[DEBUG_LOG] Creating Product 1 (active)");
             Product product1 = new Product();
-            product1.setName("Product 1");
+            product1Name = "Product 1" + uniqueSuffix;
+            product1.setName(product1Name);
             product1.setLine(line1);
             product1.setActive(true);
             Product savedProduct1 = productTable.saveProduct(product1);
-            System.out.println("[DEBUG_LOG] Saved Product 1 with ID: " + savedProduct1.getId() + ", active: " + savedProduct1.isActive());
+            product1Id = savedProduct1.getId();
+            System.out.println("[DEBUG_LOG] Saved Product 1 with ID: " + product1Id + ", active: " + savedProduct1.isActive());
 
             System.out.println("[DEBUG_LOG] Creating Product 2 (active)");
             Product product2 = new Product();
-            product2.setName("Product 2");
+            product2Name = "Product 2" + uniqueSuffix;
+            product2.setName(product2Name);
             product2.setLine(line1);
             product2.setActive(true);
             Product savedProduct2 = productTable.saveProduct(product2);
@@ -93,7 +107,8 @@ public class ExistsQueryTest {
 
             System.out.println("[DEBUG_LOG] Creating Product 3 (inactive)");
             Product product3 = new Product();
-            product3.setName("Product 3");
+            product3Name = "Product 3" + uniqueSuffix;
+            product3.setName(product3Name);
             product3.setLine(line2);
             product3.setActive(false);
             Product savedProduct3 = productTable.saveProduct(product3);
@@ -101,7 +116,8 @@ public class ExistsQueryTest {
 
             System.out.println("[DEBUG_LOG] Creating Product 4 (inactive)");
             Product product4 = new Product();
-            product4.setName("Product 4");
+            product4Name = "Product 4" + uniqueSuffix;
+            product4.setName(product4Name);
             product4.setLine(line2);
             product4.setActive(false);
             Product savedProduct4 = productTable.saveProduct(product4);
@@ -120,20 +136,21 @@ public class ExistsQueryTest {
         System.out.println("[DEBUG_LOG] Starting testExistsById");
         try {
             // Test existsById with an existing ID
-            System.out.println("[DEBUG_LOG] Checking if product with ID 1 exists");
-            boolean exists = sqliteQueryTest.existsById(1);
-            System.out.println("[DEBUG_LOG] Product with ID 1 exists: " + exists);
+            System.out.println("[DEBUG_LOG] Checking if product with ID " + product1Id + " exists");
+            boolean exists = sqliteQueryTest.existsById(product1Id);
+            System.out.println("[DEBUG_LOG] Product with ID " + product1Id + " exists: " + exists);
 
             // Verify the result
-            assertTrue("Product with ID 1 should exist", exists);
+            assertTrue("Product with ID " + product1Id + " should exist", exists);
 
             // Test existsById with a non-existing ID
-            System.out.println("[DEBUG_LOG] Checking if product with ID 999 exists");
-            exists = sqliteQueryTest.existsById(999);
-            System.out.println("[DEBUG_LOG] Product with ID 999 exists: " + exists);
+            int nonExistingId = 999999;
+            System.out.println("[DEBUG_LOG] Checking if product with ID " + nonExistingId + " exists");
+            exists = sqliteQueryTest.existsById(nonExistingId);
+            System.out.println("[DEBUG_LOG] Product with ID " + nonExistingId + " exists: " + exists);
 
             // Verify the result
-            assertFalse("Product with ID 999 should not exist", exists);
+            assertFalse("Product with ID " + nonExistingId + " should not exist", exists);
 
             System.out.println("[DEBUG_LOG] testExistsById passed");
         } catch (Exception e) {
@@ -148,20 +165,21 @@ public class ExistsQueryTest {
         System.out.println("[DEBUG_LOG] Starting testExistsByName");
         try {
             // Test existsByName with an existing name
-            System.out.println("[DEBUG_LOG] Checking if product with name 'Product 1' exists");
-            boolean exists = sqliteQueryTest.existsByName("Product 1");
-            System.out.println("[DEBUG_LOG] Product with name 'Product 1' exists: " + exists);
+            System.out.println("[DEBUG_LOG] Checking if product with name '" + product1Name + "' exists");
+            boolean exists = sqliteQueryTest.existsByName(product1Name);
+            System.out.println("[DEBUG_LOG] Product with name '" + product1Name + "' exists: " + exists);
 
             // Verify the result
-            assertTrue("Product with name 'Product 1' should exist", exists);
+            assertTrue("Product with name '" + product1Name + "' should exist", exists);
 
             // Test existsByName with a non-existing name
-            System.out.println("[DEBUG_LOG] Checking if product with name 'Nonexistent Product' exists");
-            exists = sqliteQueryTest.existsByName("Nonexistent Product");
-            System.out.println("[DEBUG_LOG] Product with name 'Nonexistent Product' exists: " + exists);
+            String nonExistingName = "Nonexistent Product " + System.currentTimeMillis();
+            System.out.println("[DEBUG_LOG] Checking if product with name '" + nonExistingName + "' exists");
+            exists = sqliteQueryTest.existsByName(nonExistingName);
+            System.out.println("[DEBUG_LOG] Product with name '" + nonExistingName + "' exists: " + exists);
 
             // Verify the result
-            assertFalse("Product with name 'Nonexistent Product' should not exist", exists);
+            assertFalse("Product with name '" + nonExistingName + "' should not exist", exists);
 
             System.out.println("[DEBUG_LOG] testExistsByName passed");
         } catch (Exception e) {
