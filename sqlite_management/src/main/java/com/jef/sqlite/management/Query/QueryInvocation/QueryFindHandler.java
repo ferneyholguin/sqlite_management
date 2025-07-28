@@ -12,7 +12,9 @@ import com.jef.sqlite.management.interfaces.Table;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -188,6 +190,8 @@ public class QueryFindHandler<T> {
 
         if (fieldType == String.class)
             field.set(instance, cursor.getString(columnIndex));
+        else if (fieldType == short.class || fieldType == Short.class)
+            field.set(instance, cursor.getShort(columnIndex));
         else if (fieldType == int.class || fieldType == Integer.class)
             field.set(instance, cursor.getInt(columnIndex));
         else if (fieldType == long.class || fieldType == Long.class)
@@ -198,6 +202,12 @@ public class QueryFindHandler<T> {
             field.set(instance, cursor.getFloat(columnIndex));
         else if (fieldType == boolean.class || fieldType == Boolean.class)
             field.set(instance, cursor.getInt(columnIndex) == 1);
+        else if (fieldType == byte.class || fieldType == Byte.class)
+            field.set(instance, cursor.getShort(columnIndex));
+        else if (fieldType == byte[].class)
+            field.set(instance, cursor.getBlob(columnIndex));
+        else if (fieldType == Date.class)
+            field.set(instance, new Date(cursor.getLong(columnIndex)));
 
     }
 

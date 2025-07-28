@@ -222,28 +222,28 @@ public class ExistsQueryTest {
         System.out.println("[DEBUG_LOG] Starting testExistsByNameAndActive");
         try {
             // Test existsByNameAndActive with an existing combination
-            System.out.println("[DEBUG_LOG] Checking if product with name 'Product 1' and active=true exists");
-            boolean exists = sqliteQueryTest.existsByNameAndActive("Product 1", true);
-            System.out.println("[DEBUG_LOG] Product with name 'Product 1' and active=true exists: " + exists);
+            System.out.println("[DEBUG_LOG] Checking if product with name '" + product1Name + "' and active=true exists");
+            boolean exists = sqliteQueryTest.existsByNameAndActive(product1Name, true);
+            System.out.println("[DEBUG_LOG] Product with name '" + product1Name + "' and active=true exists: " + exists);
 
             // Verify the result
-            assertTrue("Product with name 'Product 1' and active=true should exist", exists);
+            assertTrue("Product with name '" + product1Name + "' and active=true should exist", exists);
 
             // Test existsByNameAndActive with a non-existing combination
-            System.out.println("[DEBUG_LOG] Checking if product with name 'Product 1' and active=false exists");
-            exists = sqliteQueryTest.existsByNameAndActive("Product 1", false);
-            System.out.println("[DEBUG_LOG] Product with name 'Product 1' and active=false exists: " + exists);
+            System.out.println("[DEBUG_LOG] Checking if product with name '" + product1Name + "' and active=false exists");
+            exists = sqliteQueryTest.existsByNameAndActive(product1Name, false);
+            System.out.println("[DEBUG_LOG] Product with name '" + product1Name + "' and active=false exists: " + exists);
 
             // Verify the result
-            assertFalse("Product with name 'Product 1' and active=false should not exist", exists);
+            assertFalse("Product with name '" + product1Name + "' and active=false should not exist", exists);
 
             // Test another existing combination
-            System.out.println("[DEBUG_LOG] Checking if product with name 'Product 3' and active=false exists");
-            exists = sqliteQueryTest.existsByNameAndActive("Product 3", false);
-            System.out.println("[DEBUG_LOG] Product with name 'Product 3' and active=false exists: " + exists);
+            System.out.println("[DEBUG_LOG] Checking if product with name '" + product3Name + "' and active=false exists");
+            exists = sqliteQueryTest.existsByNameAndActive(product3Name, false);
+            System.out.println("[DEBUG_LOG] Product with name '" + product3Name + "' and active=false exists: " + exists);
 
             // Verify the result
-            assertTrue("Product with name 'Product 3' and active=false should exist", exists);
+            assertTrue("Product with name '" + product3Name + "' and active=false should exist", exists);
 
             System.out.println("[DEBUG_LOG] testExistsByNameAndActive passed");
         } catch (Exception e) {

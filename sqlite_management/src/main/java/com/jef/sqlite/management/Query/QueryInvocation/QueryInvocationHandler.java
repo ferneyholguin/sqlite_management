@@ -42,10 +42,10 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
         this.entityClass = entityClass;
         this.management = management;
         this.findHandler = new QueryFindHandler<>(entityClass, management);
-        this.saveHandler = new QuerySaveHandler<>(entityClass, management);
+        this.saveHandler = new QuerySaveHandler<>(management);
         this.updateHandler = new QueryUpdateHandler<>(entityClass, management);
         this.existsHandler = new QueryExistsHandler<>(entityClass, management);
-        this.validatorHandler = new QueryValidatorHandler<>(entityClass, management);
+        this.validatorHandler = new QueryValidatorHandler<>(management);
     }
 
     /**
@@ -87,10 +87,28 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
 
             if (methodName.equals("validate")) {
                 if (args == null || args.length == 0 || args[0] == null)
-                    throw new SQLiteException("Entity is required for save method");
+                    throw new SQLiteException("Entity is required for validate method");
 
                 try {
-                    return validatorHandler.validateEntity((T) args[0]);
+                    try {
+                        validatorHandler.validateEntity((T) args[0]);
+                        return true;
+                    } catch (SQLiteException e) {
+                        // If validation fails, return false instead of throwing the exception
+                        return false;
+                    }
+                } catch (ClassCastException e) {
+                    throw new SQLiteException("Entity must be of type " + entityClass.getName());
+                }
+            }
+
+            if (methodName.equals("validateOrThrow")) {
+                if (args == null || args.length == 0 || args[0] == null)
+                    throw new SQLiteException("Entity is required for validateOrThrow method");
+
+                try {
+                    validatorHandler.validateEntity((T) args[0]);
+                    return null; // Return null for void methods
                 } catch (ClassCastException e) {
                     throw new SQLiteException("Entity must be of type " + entityClass.getName());
                 }

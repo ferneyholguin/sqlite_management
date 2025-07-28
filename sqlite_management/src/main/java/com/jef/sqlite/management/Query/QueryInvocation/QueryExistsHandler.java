@@ -6,21 +6,16 @@ import android.database.sqlite.SQLiteDatabase;
 import com.jef.sqlite.management.SQLiteManagement;
 import com.jef.sqlite.management.exceptions.SQLiteException;
 import com.jef.sqlite.management.interfaces.Column;
+import com.jef.sqlite.management.interfaces.Join;
 import com.jef.sqlite.management.interfaces.Table;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-/**
- * Handler class for existence check operations in the query system.
- * This class contains methods to check if entities exist based on various criteria.
- * 
- * @param <T> The entity type being queried
- */
 public class QueryExistsHandler<T> {
 
     private final Class<T> entityClass;
@@ -28,43 +23,37 @@ public class QueryExistsHandler<T> {
     private final String tableName;
     private final Map<String, String> fieldToColumn;
 
-    /**
-     * Constructor for QueryExistsHandler
-     * 
-     * @param entityClass The entity class being queried
-     * @param management The SQLiteManagement instance
-     */
     public QueryExistsHandler(Class<T> entityClass, SQLiteManagement management) {
         this.entityClass = entityClass;
         this.management = management;
-        this.tableName = entityClass.getAnnotation(Table.class).name();
-        this.fieldToColumn = new HashMap<>();
 
-        for (Field field : entityClass.getDeclaredFields())
-            if (field.isAnnotationPresent(Column.class))
-                fieldToColumn.put(field.getName().toLowerCase(), field.getAnnotation(Column.class).name());
+        if (entityClass.isAnnotationPresent(Table.class))
+            this.tableName = entityClass.getAnnotation(Table.class).name();
+        else
+            throw new IllegalArgumentException("Entity class " + entityClass.getName() + " is not annotated with @Table");
+
+        fieldToColumn = new HashMap<>();
+
+        for (Field field : entityClass.getDeclaredFields()) {
+            if (field.isAnnotationPresent(Column.class)) {
+                String fieldName = Character.toLowerCase(field.getName().charAt(0)) + field.getName().substring(1);
+                fieldToColumn.put(fieldName, field.getAnnotation(Column.class).name());
+            } else if (field.isAnnotationPresent(Join.class)) {
+                String fieldName = Character.toLowerCase(field.getName().charAt(0)) + field.getName().substring(1);
+                fieldToColumn.put(fieldName, field.getAnnotation(Join.class).targetName());
+            }
+        }
+
     }
 
-    /**
-     * Handles method calls for existence checks.
-     * Parses the method name to determine the fields and operators to use in the query.
-     * 
-     * @param method The method being invoked
-     * @param args The arguments passed to the method
-     * @return true if any entity matches the criteria, false otherwise
-     * @throws SQLiteException If there's an error in the query or method name format
-     */
     public boolean handleExistsBy(Method method, Object[] args) {
-        String methodName = method.getName();
+        if (args == null || args.length < 1)
+            throw new SQLiteException("No arguments provided for existsBy method");
 
-        if (!methodName.startsWith("existsBy"))
-            throw new SQLiteException("Method name must start with 'existsBy': " + methodName);
+        if (!method.getName().startsWith("existsBy"))
+            throw new SQLiteException("Method name must start with 'existsBy': " + method.getName());
 
-        // Extract the criteria part (after "existsBy")
-        String criteria = methodName.substring("existsBy".length());
-
-        // Parse the criteria to build the WHERE clause
-        String whereClause = buildWhereClause(criteria);
+        String whereClause = extractWhereClause(method);
 
         // Create the SQL query
         String sql = "SELECT COUNT(*) FROM " + tableName + " WHERE " + whereClause;
@@ -74,44 +63,55 @@ public class QueryExistsHandler<T> {
     }
 
     /**
-     * Builds a WHERE clause from the criteria part of the method name.
-     * Supports "And" and "Or" operators.
-     * 
-     * @param criteria The criteria part of the method name (after "existsBy")
-     * @return The WHERE clause for the SQL query
-     * @throws SQLiteException If a field in the criteria doesn't exist
+     * Extracts the WHERE clause from a method name.
+     * Parses the method name to extract field names and operators (AND, OR).
+     *
+     * @param method The method to extract the WHERE clause from
+     * @return The SQL WHERE clause (without the "WHERE" keyword)
+     * @throws SQLiteException If a field in the method name doesn't exist in the entity
      */
-    private String buildWhereClause(String criteria) {
-        StringBuilder whereClause = new StringBuilder();
+    public String extractWhereClause(Method method) {
+        String methodName = method.getName();
 
-        // Split the criteria by "And" and "Or" operators
-        Pattern pattern = Pattern.compile("(And|Or)");
-        String[] parts = pattern.split(criteria);
+        int startIndex = "existsBy".length();
+        int endIndex = methodName.length();
 
-        // Find all operators in the criteria
-        Matcher matcher = pattern.matcher(criteria);
-        String[] operators = new String[parts.length - 1];
-        int i = 0;
-        while (matcher.find()) {
-            operators[i++] = matcher.group();
+        String whereString = methodName.substring(startIndex, endIndex);
+
+        //Se separan las palabras por camelCase incluido los And y Or
+        String[] whereCamelCase = splitCamelCase(whereString);
+
+        List<String> parts = new ArrayList<>();
+
+        StringBuilder currentWord = new StringBuilder();
+        for (String part : whereCamelCase) {
+            if (part.equalsIgnoreCase("and") || part.equalsIgnoreCase("or")) {
+                if (currentWord.length() > 0)
+                    parts.add(currentWord.toString());
+
+                parts.add(part);
+                currentWord = new StringBuilder();
+            } else
+                currentWord.append(part);
         }
 
-        // Build the WHERE clause
-        for (i = 0; i < parts.length; i++) {
-            // Convert the field name to camelCase for lookup
-            String fieldName = Character.toLowerCase(parts[i].charAt(0)) + parts[i].substring(1);
+        // Add the last word if it's not empty
+        if (currentWord.length() > 0)
+            parts.add(currentWord.toString());
 
-            // Get the column name
-            String columnName = fieldToColumn.get(fieldName.toLowerCase());
-            if (columnName == null)
-                throw new SQLiteException("Field not found: " + fieldName);
+        StringBuilder whereClause = new StringBuilder();
 
-            // Add the field condition
-            whereClause.append(columnName).append(" = ?");
+        for (String part : parts) {
+            if (part.equalsIgnoreCase("and") || part.equalsIgnoreCase("or"))
+                whereClause.append(" ").append(part.toUpperCase());
+            else {
+                String fieldName = Character.toLowerCase(part.charAt(0)) + part.substring(1);
+                String columnName = fieldToColumn.get(fieldName);
 
-            // Add the operator if not the last part
-            if (i < operators.length) {
-                whereClause.append(" ").append(operators[i]).append(" ");
+                if (columnName == null)
+                    throw new SQLiteException("Field not found: " + fieldName);
+
+                whereClause.append(" ").append(columnName).append(" = ?");
             }
         }
 
@@ -120,7 +120,7 @@ public class QueryExistsHandler<T> {
 
     /**
      * Executes a SQL query to check if any entity matches the criteria.
-     * 
+     *
      * @param sql The SQL query to execute
      * @param args The arguments for the query
      * @return true if any entity matches the criteria, false otherwise
@@ -146,9 +146,10 @@ public class QueryExistsHandler<T> {
         }
     }
 
+
     /**
      * Converts method arguments to string array for SQL query parameters.
-     * 
+     *
      * @param args The method arguments
      * @return String array of argument values
      * @throws SQLiteException If an argument type is not supported
@@ -182,6 +183,38 @@ public class QueryExistsHandler<T> {
 
         return result;
     }
+
+
+    /**
+     * Splits a camelCase string into an array of words.
+     * For example, "findByNameAndAge" would be split into ["find", "By", "Name", "And", "Age"].
+     *
+     * @param input The camelCase string to split
+     * @return An array of words
+     */
+    public String[] splitCamelCase(String input) {
+        List<String> words = new ArrayList<>();
+        StringBuilder currentWord = new StringBuilder();
+
+        for (int i = 0; i < input.length(); i++) {
+            char c = input.charAt(i);
+            if (i > 0 && Character.isUpperCase(c)) {
+                words.add(currentWord.toString());
+                currentWord = new StringBuilder();
+            }
+
+            currentWord.append(c);
+        }
+
+        if (currentWord.length() > 0)
+            words.add(currentWord.toString());
+
+        return words.toArray(new String[0]);
+    }
+
+
+
+
 
 
 

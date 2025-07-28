@@ -10,6 +10,7 @@ import com.jef.sqlite.management.interfaces.Join;
 import com.jef.sqlite.management.interfaces.Table;
 
 import java.lang.reflect.Field;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -21,20 +22,15 @@ import java.util.Map;
  */
 public class QuerySaveHandler<T> {
 
-    private final Class<T> entityClass;
     private final SQLiteManagement management;
 
     /**
      * Constructor for QuerySaveHandler
-     * 
-     * @param entityClass The entity class being saved
+     *
      * @param management The SQLiteManagement instance
      */
-    public QuerySaveHandler(Class<T> entityClass, SQLiteManagement management) {
-
-        this.entityClass = entityClass;
+    public QuerySaveHandler(SQLiteManagement management) {
         this.management = management;
-
     }
 
     /**
@@ -47,6 +43,8 @@ public class QuerySaveHandler<T> {
     public T save(T entity) throws SQLiteException {
         if (entity == null)
             throw new SQLiteException("Cannot save null entity");
+
+        Class<?> entityClass = entity.getClass();
 
         if (!entityClass.isAnnotationPresent(Table.class))
             throw new SQLiteException("Entity class " + entityClass.getName() + " is not annotated with @Table");
@@ -116,6 +114,8 @@ public class QuerySaveHandler<T> {
                     values.putNull(columnName);
                 } else if (value instanceof String) {
                     values.put(columnName, (String) value);
+                } else if (value instanceof Short) {
+                    values.put(columnName, (Short) value);
                 } else if (value instanceof Integer) {
                     values.put(columnName, (Integer) value);
                 } else if (value instanceof Long) {
@@ -126,6 +126,12 @@ public class QuerySaveHandler<T> {
                     values.put(columnName, (Float) value);
                 } else if (value instanceof Boolean) {
                     values.put(columnName, ((Boolean) value) ? 1 : 0);
+                } else if (value instanceof byte[]) {
+                    values.put(columnName, (byte[]) value);
+                } else if (value instanceof Byte) {
+                    values.put(columnName, (Byte) value);
+                } else if (value instanceof Date) {
+                    values.put(columnName, ((Date) value).getTime());
                 }
             } catch (IllegalAccessException e) {
                 throw new SQLiteException("Error accessing field " + field.getName() + ": " + e.getMessage(), e);

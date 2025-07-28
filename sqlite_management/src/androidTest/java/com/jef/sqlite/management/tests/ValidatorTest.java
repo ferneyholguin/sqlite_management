@@ -50,8 +50,8 @@ public class ValidatorTest {
         // Create validators
         System.out.println("[DEBUG_LOG] Creating validators");
         Management management = new Management(context);
-        productValidator = new QueryValidatorHandler<>(Product.class, management);
-        lineValidator = new QueryValidatorHandler<>(Line.class, management);
+        productValidator = new QueryValidatorHandler<>(management);
+        lineValidator = new QueryValidatorHandler<>(management);
 
         // Setup test data
         System.out.println("[DEBUG_LOG] Setting up test data");

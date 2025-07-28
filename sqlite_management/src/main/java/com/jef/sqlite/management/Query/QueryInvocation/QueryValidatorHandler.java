@@ -21,20 +21,15 @@ import java.util.List;
  */
 public class QueryValidatorHandler<T> {
 
-    private final Class<T> entityClass;
     private final SQLiteManagement management;
-    private final String tableName;
 
     /**
      * Constructor for QueryValidatorHandler
-     * 
-     * @param entityClass The entity class being validated
+     *
      * @param management The SQLiteManagement instance
      */
-    public QueryValidatorHandler(Class<T> entityClass, SQLiteManagement management) {
-        this.entityClass = entityClass;
+    public QueryValidatorHandler(SQLiteManagement management) {
         this.management = management;
-        this.tableName = entityClass.getAnnotation(Table.class).name();
     }
 
     /**
@@ -51,6 +46,9 @@ public class QueryValidatorHandler<T> {
     public boolean validateEntity(T entity) throws SQLiteException {
         if (entity == null)
             throw new SQLiteException("Cannot validate null entity");
+
+        Class<?> entityClass = entity.getClass();
+        final String tableName = entityClass.getAnnotation(Table.class).name();
 
         if (!entityClass.isAnnotationPresent(Table.class))
             throw new SQLiteException("Entity class " + entityClass.getName() + " is not annotated with @Table");
@@ -82,7 +80,7 @@ public class QueryValidatorHandler<T> {
 
                 // Check if field is unique and if there are existing records with the same value
                 if (column.unique() && !column.autoIncrement())
-                    if (existsWithSameValue(columnName, value))
+                    if (existsWithSameValue(tableName, columnName, value))
                         validationErrors.add("Field '" + fieldName + "' must be unique. Value '" + value + "' already exists");
 
             } catch (IllegalAccessException e) {
@@ -119,7 +117,7 @@ public class QueryValidatorHandler<T> {
 
                 // Find the source field in the related entity
                 for (Field relatedField : relatedEntity.getClass().getDeclaredFields())
-                    if (relatedField.getName().equalsIgnoreCase(source)) {
+                    if (relatedField.getName().equals(source)) {
                         relatedField.setAccessible(true);
                         sourceValue = relatedField.get(relatedEntity);
                         break;
@@ -128,7 +126,7 @@ public class QueryValidatorHandler<T> {
 
                 // Check if the join field is unique and if there are existing records with the same value
                 if (join.unique() && sourceValue != null)
-                    if (existsWithSameValue(targetName, sourceValue))
+                    if (existsWithSameValue(tableName, targetName, sourceValue))
                         validationErrors.add("Field '" + fieldName + "' with Join annotation must be unique. Value '" + sourceValue + "' already exists");
 
             } catch (IllegalAccessException e) {
@@ -152,7 +150,7 @@ public class QueryValidatorHandler<T> {
      * @return true if there are existing records, false otherwise
      * @throws SQLiteException If there's an error executing the query
      */
-    private boolean existsWithSameValue(String columnName, Object value) throws SQLiteException {
+    private boolean existsWithSameValue(String tableName, String columnName, Object value) throws SQLiteException {
         SQLiteDatabase db = management.getReadableDatabase();
 
         try {

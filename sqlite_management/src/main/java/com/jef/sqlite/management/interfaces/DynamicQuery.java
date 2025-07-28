@@ -39,9 +39,22 @@ public interface DynamicQuery<T> {
      * 
      * @param entity La entidad a validar
      * @return true si la entidad es válida, false en caso contrario
-     * @throws SQLiteException Si hay errores de validación con detalles específicos
      */
     boolean validate(T entity);
 
+    /**
+     * Valida una entidad para asegurar que cumple con todas las restricciones de la base de datos.
+     * Verifica que:
+     * 1. Los campos marcados como no nulos tengan valores
+     * 2. Los campos marcados como únicos no dupliquen valores existentes
+     * 3. Las relaciones requeridas (Join) estén presentes
+     * 
+     * A diferencia del método validate(T entity), este método arroja una excepción
+     * si la entidad no es válida, con detalles específicos sobre los errores de validación.
+     * 
+     * @param entity La entidad a validar
+     * @throws SQLiteException Si hay errores de validación con detalles específicos
+     */
+    void validateOrThrow(T entity) throws SQLiteException;
 
 }

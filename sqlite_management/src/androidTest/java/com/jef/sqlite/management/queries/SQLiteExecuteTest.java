@@ -16,20 +16,20 @@ public interface SQLiteExecuteTest extends DynamicQuery<Product> {
      * 
      * @param newName the new name for the product
      * @param id the ID of the product to update
-     * @return the number of rows affected (always 1 in this implementation)
+     * @return true if the update was successful, false otherwise
      */
     @SQLiteQuery(sql = "UPDATE products SET name = ? WHERE id = ?", captureResult = false)
-    int updateProductName(String newName, int id);
+    boolean updateProductName(String newName, int id);
 
     /**
      * Execute a custom SQL statement to delete a product.
      * This demonstrates using SQLiteQuery with waitResult=false.
      * 
      * @param id the ID of the product to delete
-     * @return the number of rows affected (always 1 in this implementation)
+     * @return true if the delete was successful, false otherwise
      */
     @SQLiteQuery(sql = "DELETE FROM products WHERE id = ?", captureResult = false)
-    int deleteProduct(int id);
+    boolean deleteProduct(int id);
 
     /**
      * Execute a custom SQL statement to insert a new product.
@@ -37,8 +37,9 @@ public interface SQLiteExecuteTest extends DynamicQuery<Product> {
      * 
      * @param name the name of the new product
      * @param lineId the ID of the line for the new product
-     * @return the number of rows affected (always 1 in this implementation)
+     * @param active whether the product is active
+     * @return true if the insert was successful, false otherwise
      */
-    @SQLiteQuery(sql = "INSERT INTO products (name, line) VALUES (?, ?)", captureResult = false)
-    int insertProduct(String name, int lineId);
+    @SQLiteQuery(sql = "INSERT INTO products (name, line, active) VALUES (?, ?, ?)", captureResult = false)
+    boolean insertProduct(String name, int lineId, boolean active);
 }

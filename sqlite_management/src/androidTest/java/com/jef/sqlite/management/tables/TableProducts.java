@@ -7,6 +7,7 @@ import androidx.annotation.NonNull;
 import com.jef.sqlite.management.Management;
 import com.jef.sqlite.management.SQLiteTable;
 import com.jef.sqlite.management.Query.QueryFactory;
+import com.jef.sqlite.management.exceptions.SQLiteException;
 import com.jef.sqlite.management.models.Product;
 import com.jef.sqlite.management.queries.ProductQuery;
 
@@ -144,10 +145,12 @@ public class TableProducts extends SQLiteTable<Product>{
     /**
      * Validate a product against database constraints
      * @param product the product to validate
-     * @return true if the product is valid, false otherwise
+     * @return true if the product is valid
+     * @throws SQLiteException if the product is invalid
      */
     public boolean validateProduct(Product product) {
-        return query().validate(product);
+        query().validateOrThrow(product);
+        return true;
     }
 
     /**
