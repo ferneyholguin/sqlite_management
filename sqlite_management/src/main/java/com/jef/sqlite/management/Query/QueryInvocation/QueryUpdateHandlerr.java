@@ -1,6 +1,6 @@
 package com.jef.sqlite.management.Query.QueryInvocation;
 
-import android.database.Cursor;
+import android.content.ContentValues;
 import android.database.sqlite.SQLiteDatabase;
 
 import com.jef.sqlite.management.SQLiteManagement;
@@ -17,14 +17,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class QueryExistsHandler<T> {
+public class QueryUpdateHandlerr<T> {
 
     private final Class<T> entityClass;
     private final SQLiteManagement management;
     private final String tableName;
     private final Map<String, String> fieldToColumn;
 
-    public QueryExistsHandler(Class<T> entityClass, SQLiteManagement management) {
+    /**
+     * Constructor para QueryUpdateHandler.
+     * Inicializa el manejador con la clase de entidad y el gestor de base de datos.
+     *
+     * @param entityClass La clase de entidad asociada a la consulta
+     * @param management El gestor de la base de datos SQLite
+     */
+    public QueryUpdateHandlerr(Class<T> entityClass, SQLiteManagement management) {
         this.entityClass = entityClass;
         this.management = management;
 
@@ -33,7 +40,7 @@ public class QueryExistsHandler<T> {
         else
             throw new IllegalArgumentException("Entity class " + entityClass.getName() + " is not annotated with @Table");
 
-        fieldToColumn = new HashMap<>();
+        this.fieldToColumn = new HashMap<>();
 
         for (Field field : entityClass.getDeclaredFields()) {
             if (field.isAnnotationPresent(Column.class)) {
@@ -44,41 +51,93 @@ public class QueryExistsHandler<T> {
                 fieldToColumn.put(fieldName, field.getAnnotation(Join.class).targetName());
             }
         }
-
     }
 
-    public boolean handleExistsBy(Method method, Object[] args) {
+    public int updateBy(Method method, Object[] args) {
         if (args == null || args.length < 1)
-            throw new SQLiteException("No arguments provided for existsBy method");
+            throw new SQLiteException("No arguments provided for updateBy");
 
-        if (!method.getName().startsWith("existsBy"))
-            throw new SQLiteException("Method name must start with 'existsBy': " + method.getName());
+        if (!(args[0] instanceof ContentValues))
+            throw new SQLiteException("ContentValues and at least one where clause value are required");
 
-        String whereClause = extractWhereClause(method);
+        ContentValues values = (ContentValues) args[0];
+        if (values.size() == 0)
+            throw new SQLiteException("ContentValues cannot be empty");
 
-        // Create the SQL query
-        String sql = "SELECT COUNT(*) FROM " + tableName + " WHERE " + whereClause;
-
-        // Execute the query
-        return executeExistsQuery(sql, args);
-    }
-
-    /**
-     * Extracts the WHERE clause from a method name.
-     * Parses the method name to extract field names and operators (AND, OR).
-     *
-     * @param method The method to extract the WHERE clause from
-     * @return The SQL WHERE clause (without the "WHERE" keyword)
-     * @throws SQLiteException If a field in the method name doesn't exist in the entity
-     */
-    public String extractWhereClause(Method method) {
         String methodName = method.getName();
+        if (!methodName.startsWith("updateBy"))
+            throw new SQLiteException("Method name must start with 'updateBy'");
 
-        int startIndex = "existsBy".length();
+        int startIndex = "updateBy".length();
         int endIndex = methodName.length();
 
         String whereString = methodName.substring(startIndex, endIndex);
 
+        String whereClause = extractWhereClause(whereString);
+        String[] whereArgs = createArgs(args);
+
+        SQLiteDatabase db = management.getWritableDatabase();
+        try {
+            return db.update(tableName, values, whereClause, whereArgs);
+        } catch (android.database.sqlite.SQLiteException e) {
+            throw new SQLiteException("Error updating entity: " + e.getMessage(), e);
+        }
+
+    }
+
+    public int update(Method method, Object[] args) {
+        String methodName = method.getName();
+
+        if (!methodName.startsWith("update"))
+            throw new SQLiteException("Method name must start with 'update'");
+
+        String[] parts = splitCamelCase(methodName.substring("update".length()));
+
+        int lastBy = 0;
+        for(int i = parts.length-1; i >= 0; i--)
+            if(parts[i].equalsIgnoreCase("by")) {
+                lastBy = i;
+                break;
+            }
+
+        final String whereClause;
+        if (lastBy > 0) {
+            StringBuilder whereString = new StringBuilder();
+            for (int i = lastBy + 1; i < parts.length; i++)
+                whereString.append(parts[i]).append(" ");
+
+            whereClause = extractWhereClause(whereString.toString());
+        } else
+            whereClause = null;
+
+        String[] partsFilter = new String[parts.length-lastBy];
+
+
+
+
+        String[] fieldsToUpdate = new String[parts.]
+
+
+
+
+
+
+
+    }
+
+    /**
+     * Extracts the where clause from a method name.
+     * <p>
+     * for example: "AgeAndName" would return "age = ? AND name = ?" <br>
+     * "FirstNameAndLastName" would return "firstName = ? AND lastName = ?" <br>
+     * "AgeOrName" would return "age = ? OR name = ?" <br>
+     * "AgeAndNameAndLastName" would return "age = ? AND name = ? AND lastName = ?" <br>
+     * "AgeOrNameOrLastName" would return "age = ? OR name = ? OR lastName = ?" <br>
+     *
+     * @param whereString The WhereString after "By"
+     * @return The where clause
+     */
+    public String extractWhereClause(String whereString) {
         //Se separan las palabras por camelCase incluido los And y Or
         String[] whereCamelCase = splitCamelCase(whereString);
 
@@ -119,34 +178,7 @@ public class QueryExistsHandler<T> {
         return whereClause.toString();
     }
 
-    /**
-     * Executes a SQL query to check if any entity matches the criteria.
-     *
-     * @param sql The SQL query to execute
-     * @param args The arguments for the query
-     * @return true if any entity matches the criteria, false otherwise
-     * @throws SQLiteException If there's an error executing the query
-     */
-    private boolean executeExistsQuery(String sql, Object[] args) {
-        SQLiteDatabase db = management.getReadableDatabase();
-
-        try {
-            Cursor cursor = db.rawQuery(sql, createArgs(args));
-            boolean exists = false;
-
-            if (cursor.moveToFirst()) {
-                exists = cursor.getInt(0) > 0;
-            }
-
-            cursor.close();
-            return exists;
-        } catch (Exception ex) {
-            throw new SQLiteException("Error executing query: " + ex.getMessage(), ex);
-        } finally {
-            db.close();
-        }
-    }
-
+    public String extractColumnsToUpdate()
 
     /**
      * Converts an array of objects to an array of strings for use in SQL queries.
@@ -190,7 +222,6 @@ public class QueryExistsHandler<T> {
         return result;
     }
 
-
     /**
      * Splits a camelCase string into an array of words.
      * For example, "findByNameAndAge" would be split into ["find", "By", "Name", "And", "Age"].
@@ -217,12 +248,6 @@ public class QueryExistsHandler<T> {
 
         return words.toArray(new String[0]);
     }
-
-
-
-
-
-
 
 
 

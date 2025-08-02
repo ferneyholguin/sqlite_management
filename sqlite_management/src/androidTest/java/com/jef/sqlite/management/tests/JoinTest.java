@@ -272,12 +272,12 @@ public class JoinTest {
     // Query interfaces
     public interface CategoryQuery extends DynamicQuery<Category> {
         List<Category> findAll();
-        Category save(Category category);
+        long save(Category category);
     }
 
     public interface ProductWithCategoryQuery extends DynamicQuery<ProductWithCategory> {
         List<ProductWithCategory> findAll();
-        ProductWithCategory save(ProductWithCategory product);
+        long save(ProductWithCategory product);
     }
 
     // Table classes
@@ -295,7 +295,9 @@ public class JoinTest {
         }
 
         public Category saveCategory(Category category) {
-            return query().save(category);
+            long id = query().save(category);
+            category.setId((int) id);
+            return category;
         }
     }
 
@@ -313,7 +315,9 @@ public class JoinTest {
         }
 
         public ProductWithCategory saveProductWithCategory(ProductWithCategory product) {
-            return query().save(product);
+            long id = query().save(product);
+            product.setId((int) id);
+            return product;
         }
     }
 }

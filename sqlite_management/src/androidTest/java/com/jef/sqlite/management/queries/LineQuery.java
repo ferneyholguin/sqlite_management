@@ -13,7 +13,7 @@ import java.util.Optional;
  */
 public interface LineQuery extends DynamicQuery<Line> {
     List<Line> findAll();
-    Line save(Line line);
+    long save(Line line);
     boolean validate(Line line);
     Optional<Line> findById(int id);
     int updateById(ContentValues values, int id);

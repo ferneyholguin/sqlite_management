@@ -493,6 +493,8 @@ public class QueryFindHandler<T> {
                     boolean value = (boolean) args[i];
                     result[i] = value ? "1" : "0";
                     break;
+                case "date":
+                    result[i] = String.valueOf(((Date) args[i]).getTime());
 
                 default:
                     throw new SQLiteException("Unsupported type for parameter: " + args[i].getClass().getSimpleName());

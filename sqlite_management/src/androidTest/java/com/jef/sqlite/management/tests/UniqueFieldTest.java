@@ -286,7 +286,9 @@ public class UniqueFieldTest {
         }
 
         public Category saveCategory(Category category) {
-            return query().save(category);
+            long id = query().save(category);
+            category.setId((int) id);
+            return category;
         }
     }
 
@@ -304,7 +306,9 @@ public class UniqueFieldTest {
         }
 
         public ProductWithUniqueCode saveProduct(ProductWithUniqueCode product) {
-            return query().save(product);
+            long id = query().save(product);
+            product.setId((int) id);
+            return product;
         }
     }
 
@@ -322,23 +326,25 @@ public class UniqueFieldTest {
         }
 
         public ProductWithUniqueCategory saveProduct(ProductWithUniqueCategory product) {
-            return query().save(product);
+            long id = query().save(product);
+            product.setId((int) id);
+            return product;
         }
     }
 
     // Query interfaces
     public interface CategoryQuery extends DynamicQuery<Category> {
         List<Category> findAll();
-        Category save(Category category);
+        long save(Category category);
     }
 
     public interface ProductWithUniqueCodeQuery extends DynamicQuery<ProductWithUniqueCode> {
         List<ProductWithUniqueCode> findAll();
-        ProductWithUniqueCode save(ProductWithUniqueCode product);
+        long save(ProductWithUniqueCode product);
     }
 
     public interface ProductWithUniqueCategoryQuery extends DynamicQuery<ProductWithUniqueCategory> {
         List<ProductWithUniqueCategory> findAll();
-        ProductWithUniqueCategory save(ProductWithUniqueCategory product);
+        long save(ProductWithUniqueCategory product);
     }
 }

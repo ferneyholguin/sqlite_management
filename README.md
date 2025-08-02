@@ -10,6 +10,8 @@ SQLite Management es una biblioteca para Android que simplifica la gestión de b
 - Consultas SQL personalizadas
 - Manejo automático de transacciones
 - Soporte para valores predeterminados y restricciones
+- Validación avanzada de entidades con mensajes de error detallados
+- Soporte para relaciones únicas y no nulas
 
 ## Instalación
 
@@ -273,19 +275,17 @@ List<Usuario> findByNombreOrApellido(String nombre, String apellido);
 **Ejemplos:**
 ```java
 // Guardar un producto
-Producto save(Producto producto);
+long save(Producto producto);
 
 // Guardar una categoría
-Categoria save(Categoria categoria);
+long save(Categoria categoria);
 
 // Guardar un usuario
-Usuario save(Usuario usuario);
+long save(Usuario usuario);
 ```
 
 **Notas:**
-- Si la entidad tiene un valor de clave primaria y existe en la base de datos, se actualizará.
-- Si la entidad no tiene un valor de clave primaria o no existe en la base de datos, se insertará.
-- Si la clave primaria es auto-incrementable, el valor generado se asignará automáticamente a la entidad devuelta.
+- El método devuelve el ID de la fila insertada o actualizada en la base de datos como un valor `long`.
 
 ### 3. Consultas de Actualización (Update Queries)
 
@@ -422,7 +422,16 @@ Optional<Usuario> autenticarUsuario(String email, String password);
 
 Las relaciones entre tablas se definen utilizando la anotación `@Join` en los campos de la entidad.
 
-**Ejemplo de definición de entidad con join:**
+### Atributos de la anotación @Join
+
+- `relationShip`: La clase de la entidad relacionada.
+- `source`: El nombre del campo en la entidad relacionada que se utilizará para la relación.
+- `targetName`: El nombre de la columna en la tabla actual que almacena la clave foránea.
+- `permitNull`: Indica si la relación puede ser nula. Por defecto es `true`.
+- `defaultValue`: Valor predeterminado para la relación si es nula.
+- `unique`: Indica si la relación debe ser única. Por defecto es `false`.
+
+**Ejemplo de definición de entidad con join básico:**
 ```java
 @Table(name = "lineas")
 public class Linea {
@@ -437,6 +446,32 @@ public class Linea {
 
     @Join(relationShip = Producto.class, source = "id", targetName = "producto_id")
     private Producto producto;
+
+    // Getters y setters
+}
+```
+
+**Ejemplo de definición de entidad con join avanzado:**
+```java
+@Table(name = "productos_con_categoria")
+public class ProductoConCategoria {
+    @Column(name = "id", primaryKey = true, autoIncrement = true)
+    private int id;
+
+    @Column(name = "nombre")
+    private String nombre;
+
+    @Column(name = "categoria_id")
+    private int categoriaId;
+
+    // Relación obligatoria (no puede ser nula), única y con valor predeterminado
+    @Join(relationShip = Categoria.class, 
+          source = "id", 
+          targetName = "categoria_id", 
+          permitNull = false, 
+          defaultValue = "0", 
+          unique = true)
+    private Categoria categoria;
 
     // Getters y setters
 }
@@ -459,9 +494,34 @@ La biblioteca proporciona funcionalidad para validar entidades antes de insertar
 
 La biblioteca proporciona dos formas de validar entidades:
 
-#### 1. Usando el método `validate` de la interfaz `DynamicQuery`
+#### 1. Usando los métodos de validación de la interfaz `DynamicQuery`
 
-La interfaz `DynamicQuery` incluye un método `validate` que permite validar entidades directamente a través de la interfaz de consulta:
+La interfaz `DynamicQuery` incluye dos métodos para validar entidades:
+
+##### 1.1 Método `validate`
+
+Este método valida la entidad y devuelve un valor booleano:
+
+```java
+// Crear un producto para validar
+Producto producto = new Producto();
+producto.setNombre("Smartphone XYZ");
+producto.setPrecio(599.99);
+
+// Validar el producto antes de guardarlo
+boolean esValido = productoQuery.validate(producto);
+if (esValido) {
+    // El producto es válido, proceder a guardarlo
+    productoQuery.save(producto);
+} else {
+    // La entidad no es válida
+    System.err.println("La entidad no es válida");
+}
+```
+
+##### 1.2 Método `validateOrThrow`
+
+Este método valida la entidad y lanza una excepción con detalles específicos si la validación falla:
 
 ```java
 // Crear un producto para validar
@@ -471,13 +531,11 @@ producto.setPrecio(599.99);
 
 try {
     // Validar el producto antes de guardarlo
-    boolean esValido = productoQuery.validate(producto);
-    if (esValido) {
-        // El producto es válido, proceder a guardarlo
-        productoQuery.save(producto);
-    }
+    productoQuery.validateOrThrow(producto);
+    // Si no se lanza excepción, la entidad es válida
+    productoQuery.save(producto);
 } catch (SQLiteException e) {
-    // La validación falló, manejar el error
+    // La validación falló, manejar el error con detalles específicos
     System.err.println("Error de validación: " + e.getMessage());
 }
 ```
@@ -514,6 +572,8 @@ En ambos casos, la validación verifica:
 2. Que todos los campos marcados como no nulos (`permitNull = false`) tengan valores
 3. Para campos únicos (`unique = true`), que no existan registros con el mismo valor en la base de datos
 4. Que las relaciones requeridas (campos con anotación `@Join` y `permitNull = false`) estén presentes
+5. Que las relaciones marcadas como únicas (`@Join` con `unique = true`) no dupliquen valores existentes
+6. Que los valores predeterminados (`defaultValue`) se apliquen correctamente cuando corresponda
 
 ### Definición de Restricciones en Entidades
 
@@ -531,6 +591,16 @@ public class Producto {
     @Column(name = "precio", defaultValue = "0.0")
     private double precio;
 
+    @Column(name = "categoria_id")
+    private int categoriaId;
+
+    @Join(relationShip = Categoria.class, 
+          source = "id", 
+          targetName = "categoria_id", 
+          permitNull = false, 
+          defaultValue = "0")
+    private Categoria categoria;
+
     // Getters y setters
 }
 ```
@@ -538,6 +608,8 @@ public class Producto {
 En este ejemplo:
 - El campo `nombre` es obligatorio (`permitNull = false`) y debe ser único (`unique = true`)
 - El campo `precio` tiene un valor predeterminado de 0.0
+- La relación `categoria` es obligatoria (`permitNull = false`) y tiene un valor predeterminado de 0
+- La validación verificará que la categoría exista y que el campo no sea nulo
 
 ## Notas Importantes
 
@@ -547,6 +619,8 @@ En este ejemplo:
 4. Las consultas de guardado manejan automáticamente las relaciones, guardando primero las entidades relacionadas si es necesario.
 5. Las consultas de actualización no actualizan las claves primarias.
 6. Es recomendable validar las entidades antes de guardarlas para evitar errores de restricción en la base de datos.
+7. Para validaciones más estrictas, utilice el método `validateOrThrow` que proporciona mensajes de error detallados.
+8. Los atributos `permitNull`, `defaultValue` y `unique` en la anotación `@Join` permiten definir restricciones avanzadas en las relaciones entre tablas.
 
 ## Licencia
 

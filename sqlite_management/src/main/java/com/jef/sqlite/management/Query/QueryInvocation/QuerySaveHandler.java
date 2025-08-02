@@ -37,10 +37,10 @@ public class QuerySaveHandler<T> {
      * Saves an entity to the database by inserting it.
      * 
      * @param entity The entity to save
-     * @return The saved entity with any auto-generated values (like auto-increment IDs)
+     * @return The row ID of the inserted record in the database
      * @throws SQLiteException If there's an error during the save operation
      */
-    public T save(T entity) throws SQLiteException {
+    public long save(T entity) throws SQLiteException {
         if (entity == null)
             throw new SQLiteException("Cannot save null entity");
 
@@ -133,6 +133,7 @@ public class QuerySaveHandler<T> {
                 } else if (value instanceof Date) {
                     values.put(columnName, ((Date) value).getTime());
                 }
+
             } catch (IllegalAccessException e) {
                 throw new SQLiteException("Error accessing field " + field.getName() + ": " + e.getMessage(), e);
             }
@@ -148,6 +149,8 @@ public class QuerySaveHandler<T> {
                 values.putNull(columnName);
             } else if (value instanceof String) {
                 values.put(columnName, (String) value);
+            } else if (value instanceof Short) {
+                values.put(columnName, (Short) value);
             } else if (value instanceof Integer) {
                 values.put(columnName, (Integer) value);
             } else if (value instanceof Long) {
@@ -158,7 +161,14 @@ public class QuerySaveHandler<T> {
                 values.put(columnName, (Float) value);
             } else if (value instanceof Boolean) {
                 values.put(columnName, ((Boolean) value) ? 1 : 0);
+            } else if (value instanceof byte[]) {
+                values.put(columnName, (byte[]) value);
+            } else if (value instanceof Byte) {
+                values.put(columnName, (Byte) value);
+            } else if (value instanceof Date) {
+                values.put(columnName, ((Date) value).getTime());
             }
+
         }
 
         // Perform the database operation
@@ -166,36 +176,9 @@ public class QuerySaveHandler<T> {
         try {
             try {
                 // Insert new entity
-                long id = db.insert(tableName, null, values);
-                if (id == -1)
-                    throw new SQLiteException("Failed to insert entity into table " + tableName);
+                long result = db.insert(tableName, null, values);
 
-                // Update the ID in the entity
-                try {
-                    // Find the ID field (with @Column annotation and autoIncrement=true)
-                    for (Field field : entityClass.getDeclaredFields()) {
-                        if (!field.isAnnotationPresent(Column.class))
-                            continue;
-
-                        Column column = field.getAnnotation(Column.class);
-                        if (!column.autoIncrement())
-                            continue;
-
-                        field.setAccessible(true);
-                        // Set the ID value in the entity
-                        if (field.getType() == int.class || field.getType() == Integer.class) {
-                            field.set(entity, (int) id);
-                        } else {
-                            field.set(entity, id);
-                        }
-                        break;
-
-                    }
-                } catch (IllegalAccessException e) {
-                    throw new SQLiteException("Error setting ID in entity: " + e.getMessage(), e);
-                }
-
-                return entity;
+                return result;
             } catch (android.database.sqlite.SQLiteException e) {
                 // Wrap Android's SQLiteException in our own SQLiteException
                 throw new SQLiteException("SQLite error: " + e.getMessage(), e);

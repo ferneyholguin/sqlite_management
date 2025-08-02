@@ -45,27 +45,21 @@ public class QueryUpdateHandler<T> {
     public QueryUpdateHandler(Class<T> entityClass, SQLiteManagement management) {
         this.entityClass = entityClass;
         this.management = management;
-        this.tableName = entityClass.getAnnotation(Table.class).name();
+
+        if (entityClass.isAnnotationPresent(Table.class))
+            this.tableName = entityClass.getAnnotation(Table.class).name();
+        else
+            throw new IllegalArgumentException("Entity class " + entityClass.getName() + " is not annotated with @Table");
+
         this.fieldToColumn = new HashMap<>();
 
-        // Map Column fields
         for (Field field : entityClass.getDeclaredFields()) {
             if (field.isAnnotationPresent(Column.class)) {
-                fieldToColumn.put(field.getName().toLowerCase(), field.getAnnotation(Column.class).name());
-            }
-        }
-
-        // Map Join fields
-        for (Field field : entityClass.getDeclaredFields()) {
-            if (field.isAnnotationPresent(Join.class)) {
-                String fieldName = field.getName().toLowerCase();
-                String columnName = field.getAnnotation(Join.class).targetName();
-                fieldToColumn.put(fieldName, columnName);
-
-                // Add special case for LineId -> line mapping
-                if (fieldName.equals("line")) {
-                    fieldToColumn.put("lineid", columnName);
-                }
+                String fieldName = Character.toLowerCase(field.getName().charAt(0)) + field.getName().substring(1);
+                fieldToColumn.put(fieldName, field.getAnnotation(Column.class).name());
+            } else if (field.isAnnotationPresent(Join.class)) {
+                String fieldName = Character.toLowerCase(field.getName().charAt(0)) + field.getName().substring(1);
+                fieldToColumn.put(fieldName, field.getAnnotation(Join.class).targetName());
             }
         }
     }

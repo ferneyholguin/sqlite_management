@@ -25,9 +25,9 @@ public interface DynamicQuery<T> {
      * y existe en la base de datos, se actualizará. De lo contrario, se insertará.
      * 
      * @param entity La entidad a guardar
-     * @return La entidad guardada con cualquier valor autogenerado (como IDs de autoincremento)
+     * @return El ID de la fila insertada o actualizada en la base de datos
      */
-    T save(T entity);
+    long save(T entity);
 
 
     /**
@@ -49,7 +49,7 @@ public interface DynamicQuery<T> {
      * 2. Los campos marcados como únicos no dupliquen valores existentes
      * 3. Las relaciones requeridas (Join) estén presentes
      * 
-     * A diferencia del método validate(T entity), este método arroja una excepción
+     * A diferencia del metodo validate(T entity), este metodo arroja una excepción
      * si la entidad no es válida, con detalles específicos sobre los errores de validación.
      * 
      * @param entity La entidad a validar

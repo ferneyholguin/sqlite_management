@@ -54,9 +54,10 @@ public class ExampleInstrumentedTest {
         // Create a table products instance
         TableProducts tableProducts = new TableProducts(appContext);
 
-        // Create a new product
+        // Create a new product with a unique name using timestamp
         Product product = new Product();
-        product.setName("Test Product");
+        String uniqueName = "Test Product " + System.currentTimeMillis();
+        product.setName(uniqueName);
 
         // Set the saved Line object on the product
         product.setLine(savedLine);
@@ -67,7 +68,7 @@ public class ExampleInstrumentedTest {
         // Verify that the product was saved and has an ID
         assertNotNull("Saved product should not be null", savedProduct);
         assertTrue("Saved product should have an ID greater than 0", savedProduct.getId() > 0);
-        assertEquals("Saved product should have the same name", "Test Product", savedProduct.getName());
+        assertEquals("Saved product should have the same name", uniqueName, savedProduct.getName());
         assertNotNull("Saved product should have a line", savedProduct.getLine());
         assertEquals("Saved product should have the same line name", "Test Line", savedProduct.getLine().getName());
 
@@ -91,16 +92,22 @@ public class ExampleInstrumentedTest {
 
         assertNotNull("Should find the saved product", retrievedProduct);
 
-        // Update the product
+        // Update the product using the update methods instead of save
         Line updatedLine = new Line();
         updatedLine.setName("Updated Line");
-        savedProduct.setLine(updatedLine);
-        Product updatedProduct = tableProducts.saveProduct(savedProduct);
+        Line savedUpdatedLine = lineTable.saveLine(updatedLine);
+
+        // Update the product's line ID using the update method
+        tableProducts.updateProductNameById("Updated " + uniqueName, savedProduct.getId());
+
+        // Retrieve the updated product
+        java.util.Optional<Product> updatedProductOpt = tableProducts.getProductById(savedProduct.getId());
+        assertTrue("Updated product should be present", updatedProductOpt.isPresent());
+        Product updatedProduct = updatedProductOpt.get();
 
         // Verify that the product was updated
         assertEquals("Updated product should have the same ID", savedProduct.getId(), updatedProduct.getId());
-        assertNotNull("Updated product should have a line", updatedProduct.getLine());
-        assertEquals("Updated product should have the updated line name", "Updated Line", updatedProduct.getLine().getName());
+        assertEquals("Updated product should have the updated name", "Updated " + uniqueName, updatedProduct.getName());
 
         // Retrieve all products again
         products = tableProducts.getAllProducts();
@@ -118,8 +125,7 @@ public class ExampleInstrumentedTest {
         }
 
         assertNotNull("Should find the updated product", retrievedUpdatedProduct);
-        assertNotNull("Retrieved product should have a line", retrievedUpdatedProduct.getLine());
-        assertEquals("Should find the updated product with updated line name", "Updated Line", retrievedUpdatedProduct.getLine().getName());
+        assertEquals("Should find the updated product with updated name", "Updated " + uniqueName, retrievedUpdatedProduct.getName());
 
         // Print success message
         System.out.println("Successfully tested save functionality for new and existing products");

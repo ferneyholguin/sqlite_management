@@ -75,10 +75,12 @@ public class TableProducts extends SQLiteTable<Product>{
     /**
      * Save a product to the database
      * @param product the product to save
-     * @return the saved product with any auto-generated values (like auto-increment IDs)
+     * @return the saved product with the ID set from the database
      */
     public Product saveProduct(Product product) {
-        return query().save(product);
+        long id = query().save(product);
+        product.setId((int) id);
+        return product;
     }
 
     /**

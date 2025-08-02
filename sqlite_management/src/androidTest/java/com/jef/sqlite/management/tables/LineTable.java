@@ -36,9 +36,11 @@ public class LineTable extends SQLiteTable<Line> {
     /**
      * Save a line to the database
      * @param line the line to save
-     * @return the saved line with any auto-generated values (like auto-increment IDs)
+     * @return the saved line with the ID set from the database
      */
     public Line saveLine(Line line) {
-        return query().save(line);
+        long id = query().save(line);
+        line.setId((int) id);
+        return line;
     }
 }
