@@ -9,6 +9,20 @@ import java.util.Optional;
 public interface ProductQuery extends DynamicQuery<Product> {
 
     /**
+     * Check if a product exists by id
+     * @param id the id to check
+     * @return true if a product with the given id exists, false otherwise
+     */
+    boolean existsById(int id);
+
+    /**
+     * Check if a product exists by name
+     * @param name the name to check
+     * @return true if a product with the given name exists, false otherwise
+     */
+    boolean existsByName(String name);
+
+    /**
      * Find products by name and active status
      * @param name the name to search for
      * @param active the active status to search for
@@ -93,7 +107,7 @@ public interface ProductQuery extends DynamicQuery<Product> {
      * @param id the id of the product to update
      * @return the number of rows updated
      */
-    int updateNameWhereId(String name, int id);
+    int updateNameById(String name, int id);
 
     /**
      * Update product active status by id
@@ -101,7 +115,7 @@ public interface ProductQuery extends DynamicQuery<Product> {
      * @param id the id of the product to update
      * @return the number of rows updated
      */
-    int updateActiveWhereId(boolean active, int id);
+    int updateActiveById(boolean active, int id);
 
     /**
      * Update product name and active status by id
@@ -110,15 +124,15 @@ public interface ProductQuery extends DynamicQuery<Product> {
      * @param id the id of the product to update
      * @return the number of rows updated
      */
-    int updateNameActiveWhereId(String name, boolean active, int id);
+    int updateNameActiveById(String name, boolean active, int id);
 
     /**
-     * Update product name where line id matches
+     * Update product name by line id
      * @param name the new name
      * @param lineId the line id to match
      * @return the number of rows updated
      */
-    int updateNameWhereLineId(String name, int lineId);
+    int updateNameByLine(String name, int lineId);
 
     /**
      * Update all products' name
@@ -128,12 +142,16 @@ public interface ProductQuery extends DynamicQuery<Product> {
     int updateName(String name);
 
     /**
-     * Update product name and active status where name and line id match
+     * Update product name and active status by name and line id
      * @param newName the new name
      * @param newActive the new active status
      * @param nameToMatch the name to match
      * @param lineIdToMatch the line id to match
      * @return the number of rows updated
      */
-    int updateNameActiveWhereNameAndLineId(String newName, boolean newActive, String nameToMatch, int lineIdToMatch);
+    int updateNameActiveByNameAndLine(String newName, boolean newActive, String nameToMatch, int lineIdToMatch);
+
+    int deleteById(int id);
+
+
 }

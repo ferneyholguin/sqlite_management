@@ -1,6 +1,5 @@
 package com.jef.sqlite.management.Query.QueryInvocation;
 
-import android.content.ContentValues;
 import android.database.sqlite.SQLiteDatabase;
 
 import com.jef.sqlite.management.SQLiteManagement;
@@ -17,21 +16,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class QueryUpdateHandlerr<T> {
+public class DeleteHandler<T> {
 
     private final Class<T> entityClass;
     private final SQLiteManagement management;
     private final String tableName;
     private final Map<String, String> fieldToColumn;
 
-    /**
-     * Constructor para QueryUpdateHandler.
-     * Inicializa el manejador con la clase de entidad y el gestor de base de datos.
-     *
-     * @param entityClass La clase de entidad asociada a la consulta
-     * @param management El gestor de la base de datos SQLite
-     */
-    public QueryUpdateHandlerr(Class<T> entityClass, SQLiteManagement management) {
+    public DeleteHandler(Class<T> entityClass, SQLiteManagement management) {
         this.entityClass = entityClass;
         this.management = management;
 
@@ -51,93 +43,39 @@ public class QueryUpdateHandlerr<T> {
                 fieldToColumn.put(fieldName, field.getAnnotation(Join.class).targetName());
             }
         }
+
     }
 
-    public int updateBy(Method method, Object[] args) {
+    public int delete(Method method, Object[] args) {
         if (args == null || args.length < 1)
-            throw new SQLiteException("No arguments provided for updateBy");
+            throw new SQLiteException("No arguments provided for delete method");
 
-        if (!(args[0] instanceof ContentValues))
-            throw new SQLiteException("ContentValues and at least one where clause value are required");
+        if (!method.getName().startsWith("deleteBy"))
+            throw new SQLiteException("Method name must start with 'deleteBy': " + method.getName());
 
-        ContentValues values = (ContentValues) args[0];
-        if (values.size() == 0)
-            throw new SQLiteException("ContentValues cannot be empty");
-
-        String methodName = method.getName();
-        if (!methodName.startsWith("updateBy"))
-            throw new SQLiteException("Method name must start with 'updateBy'");
-
-        int startIndex = "updateBy".length();
-        int endIndex = methodName.length();
-
-        String whereString = methodName.substring(startIndex, endIndex);
-
-        String whereClause = extractWhereClause(whereString);
-        String[] whereArgs = createArgs(args);
+        String whereClause = extractWhereClause(method);
+        String[] queryArgs = createArgs(args);
 
         SQLiteDatabase db = management.getWritableDatabase();
         try {
-            return db.update(tableName, values, whereClause, whereArgs);
+            return db.delete(tableName, whereClause, queryArgs);
         } catch (android.database.sqlite.SQLiteException e) {
-            throw new SQLiteException("Error updating entity: " + e.getMessage(), e);
+            throw new SQLiteException("Error deleting entity: " + e.getMessage(), e);
+        } finally {
+            if (db != null && db.isOpen())
+                db.close();
         }
 
     }
 
-    public int update(Method method, Object[] args) {
+    public String extractWhereClause(Method method) {
         String methodName = method.getName();
 
-        if (!methodName.startsWith("update"))
-            throw new SQLiteException("Method name must start with 'update'");
+        int startIndex = "deleteBy".length();
+        int endIndex = methodName.length();
 
-        String[] parts = splitCamelCase(methodName.substring("update".length()));
+        String whereString = methodName.substring(startIndex, endIndex);
 
-        int lastBy = 0;
-        for(int i = parts.length-1; i >= 0; i--)
-            if(parts[i].equalsIgnoreCase("by")) {
-                lastBy = i;
-                break;
-            }
-
-        final String whereClause;
-        if (lastBy > 0) {
-            StringBuilder whereString = new StringBuilder();
-            for (int i = lastBy + 1; i < parts.length; i++)
-                whereString.append(parts[i]).append(" ");
-
-            whereClause = extractWhereClause(whereString.toString());
-        } else
-            whereClause = null;
-
-        String[] partsFilter = new String[parts.length-lastBy];
-
-
-
-
-        String[] fieldsToUpdate = new String[parts.]
-
-
-
-
-
-
-
-    }
-
-    /**
-     * Extracts the where clause from a method name.
-     * <p>
-     * for example: "AgeAndName" would return "age = ? AND name = ?" <br>
-     * "FirstNameAndLastName" would return "firstName = ? AND lastName = ?" <br>
-     * "AgeOrName" would return "age = ? OR name = ?" <br>
-     * "AgeAndNameAndLastName" would return "age = ? AND name = ? AND lastName = ?" <br>
-     * "AgeOrNameOrLastName" would return "age = ? OR name = ? OR lastName = ?" <br>
-     *
-     * @param whereString The WhereString after "By"
-     * @return The where clause
-     */
-    public String extractWhereClause(String whereString) {
         //Se separan las palabras por camelCase incluido los And y Or
         String[] whereCamelCase = splitCamelCase(whereString);
 
@@ -177,8 +115,6 @@ public class QueryUpdateHandlerr<T> {
 
         return whereClause.toString();
     }
-
-    public String extractColumnsToUpdate()
 
     /**
      * Converts an array of objects to an array of strings for use in SQL queries.
@@ -248,6 +184,11 @@ public class QueryUpdateHandlerr<T> {
 
         return words.toArray(new String[0]);
     }
+
+
+
+
+
 
 
 

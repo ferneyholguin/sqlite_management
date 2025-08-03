@@ -13,9 +13,9 @@ import com.jef.sqlite.management.queries.ProductQuery;
 
 import java.util.List;
 
-public class TableProducts extends SQLiteTable<Product>{
+public class ProductsTable extends SQLiteTable<Product>{
 
-    public TableProducts(@NonNull Context context) {
+    public ProductsTable(@NonNull Context context) {
         super(new Management(context));
     }
 
@@ -93,15 +93,7 @@ public class TableProducts extends SQLiteTable<Product>{
         return query().updateById(values, id);
     }
 
-    /**
-     * Update products by name
-     * @param values the values to update
-     * @param name the name of the products to update
-     * @return the number of rows updated
-     */
-    public int updateProductByName(android.content.ContentValues values, String name) {
-        return query().updateByName(values, name);
-    }
+
 
     /**
      * Update product name by id
@@ -110,7 +102,7 @@ public class TableProducts extends SQLiteTable<Product>{
      * @return the number of rows updated
      */
     public int updateProductNameById(String name, int id) {
-        return query().updateNameWhereId(name, id);
+        return query().updateNameById(name, id);
     }
 
     /**
@@ -120,7 +112,7 @@ public class TableProducts extends SQLiteTable<Product>{
      * @return the number of rows updated
      */
     public int updateProductActiveById(boolean active, int id) {
-        return query().updateActiveWhereId(active, id);
+        return query().updateActiveById(active, id);
     }
 
     /**
@@ -131,17 +123,17 @@ public class TableProducts extends SQLiteTable<Product>{
      * @return the number of rows updated
      */
     public int updateProductNameAndActiveById(String name, boolean active, int id) {
-        return query().updateNameActiveWhereId(name, active, id);
+        return query().updateNameActiveById(name, active, id);
     }
 
     /**
-     * Update product name where line id matches
+     * Update product name by line id
      * @param name the new name
      * @param lineId the line id to match
      * @return the number of rows updated
      */
     public int updateProductNameByLineId(String name, int lineId) {
-        return query().updateNameWhereLineId(name, lineId);
+        return query().updateNameByLine(name, lineId);
     }
 
     /**
@@ -151,8 +143,7 @@ public class TableProducts extends SQLiteTable<Product>{
      * @throws SQLiteException if the product is invalid
      */
     public boolean validateProduct(Product product) {
-        query().validateOrThrow(product);
-        return true;
+        return query().validate(product);
     }
 
     /**
@@ -175,17 +166,9 @@ public class TableProducts extends SQLiteTable<Product>{
         return query().findByNameOrActive(name, active);
     }
 
-    /**
-     * Update all products' name
-     * @param name the new name
-     * @return the number of rows updated
-     */
-    public int updateAllProductsName(String name) {
-        return query().updateName(name);
-    }
 
     /**
-     * Update product name and active status where name and line id match
+     * Update product name and active status by name and line id
      * @param newName the new name
      * @param newActive the new active status
      * @param nameToMatch the name to match
@@ -193,6 +176,32 @@ public class TableProducts extends SQLiteTable<Product>{
      * @return the number of rows updated
      */
     public int updateProductNameActiveByNameAndLineId(String newName, boolean newActive, String nameToMatch, int lineIdToMatch) {
-        return query().updateNameActiveWhereNameAndLineId(newName, newActive, nameToMatch, lineIdToMatch);
+        return query().updateNameActiveByNameAndLine(newName, newActive, nameToMatch, lineIdToMatch);
     }
+
+    /**
+     * Check if a product exists by id
+     * @param id the id to check
+     * @return true if a product with the given id exists, false otherwise
+     */
+    public boolean productExistsById(int id) {
+        return query().existsById(id);
+    }
+
+    /**
+     * Check if a product exists by name
+     * @param name the name to check
+     * @return true if a product with the given name exists, false otherwise
+     */
+    public boolean productExistsByName(String name) {
+        return query().existsByName(name);
+    }
+
+    public int deleteById(int id) {
+        return query().deleteById(id);
+    }
+
+
+
+
 }

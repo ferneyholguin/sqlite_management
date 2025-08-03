@@ -10,7 +10,9 @@ import com.jef.sqlite.management.Query.QueryFactory;
 import com.jef.sqlite.management.models.Line;
 import com.jef.sqlite.management.queries.LineQuery;
 
+import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Table class for Line entity
@@ -43,4 +45,23 @@ public class LineTable extends SQLiteTable<Line> {
         line.setId((int) id);
         return line;
     }
+
+    public Optional<Line> getLineById(int id) {
+        return query().findById(id);
+    }
+
+    public int updateById(android.content.ContentValues values, int id) {
+        return query().updateById(values, id);
+    }
+
+    public int updateNameById(String name, int id) {
+        return query().updateNameById(name, id);
+    }
+
+    public int updateDateCreationById(Date dateCreation, int id) {
+        return query().updateDateCreationById(dateCreation, id);
+    }
+
+
+
 }

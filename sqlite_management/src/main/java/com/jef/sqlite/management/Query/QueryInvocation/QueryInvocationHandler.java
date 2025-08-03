@@ -28,6 +28,7 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
     private final QueryUpdateHandler<T> updateHandler;
     private final QueryExistsHandler<T> existsHandler;
     private final QueryValidatorHandler<T> validatorHandler;
+    private final DeleteHandler<T> deleteHandler;
 
     /**
      * Constructor para QueryInvocationHandler.
@@ -41,11 +42,13 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
     public QueryInvocationHandler(Class<T> entityClass, SQLiteManagement management) {
         this.entityClass = entityClass;
         this.management = management;
+
         this.findHandler = new QueryFindHandler<>(entityClass, management);
         this.saveHandler = new QuerySaveHandler<>(management);
         this.updateHandler = new QueryUpdateHandler<>(entityClass, management);
         this.existsHandler = new QueryExistsHandler<>(entityClass, management);
         this.validatorHandler = new QueryValidatorHandler<>(management);
+        this.deleteHandler = new DeleteHandler<>(entityClass, management);
     }
 
     /**
@@ -127,10 +130,10 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
             }
 
             // Operaciones de búsqueda
-            if (methodName.startsWith("find")) {
+            if (methodName.startsWith("find"))
                 // Let QueryFindHandler handle all find operations
                 return findHandler.handleFindMethod(method, args);
-            }
+
 
             if (args == null || args.length == 0)
                 throw new SQLiteException("The args not have null o empty");
@@ -143,6 +146,9 @@ public class QueryInvocationHandler<T> implements InvocationHandler {
 
             if (methodName.startsWith("existsBy"))
                 return existsHandler.handleExistsBy(method, args);
+
+            if (methodName.startsWith("deleteBy"))
+                return deleteHandler.delete(method, args);
 
             throw new UnsupportedOperationException("Method not supported: " + methodName);
         } catch (android.database.sqlite.SQLiteException e) {

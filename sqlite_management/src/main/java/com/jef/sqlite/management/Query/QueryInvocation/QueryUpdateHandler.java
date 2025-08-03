@@ -12,22 +12,11 @@ import com.jef.sqlite.management.interfaces.Table;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
-/**
- * Manejador para operaciones de actualización en la base de datos.
- * Proporciona métodos para actualizar entidades basados en diferentes criterios.
- *
- * @param <T> El tipo de entidad sobre la que se realizan las actualizaciones
- */
 public class QueryUpdateHandler<T> {
 
     private final Class<T> entityClass;
@@ -64,17 +53,11 @@ public class QueryUpdateHandler<T> {
         }
     }
 
-    /**
-     * Actualiza entidades en la base de datos basado en criterios específicos.
-     * Analiza el nombre del metodo para determinar los campos por los que filtrar.
-     *
-     * @param method El metodo invocado
-     * @param args Los argumentos pasados al metodo (ContentValues y valores para los criterios where)
-     * @return El número de filas actualizadas
-     * @throws SQLiteException Si hay errores en los argumentos o en la ejecución de la actualización
-     */
     public int updateBy(Method method, Object[] args) {
-        if (args == null || args.length < 2 || !(args[0] instanceof ContentValues))
+        if (args == null || args.length < 1)
+            throw new SQLiteException("No arguments provided for updateBy");
+
+        if (!(args[0] instanceof ContentValues))
             throw new SQLiteException("ContentValues and at least one where clause value are required");
 
         ContentValues values = (ContentValues) args[0];
@@ -85,197 +68,334 @@ public class QueryUpdateHandler<T> {
         if (!methodName.startsWith("updateBy"))
             throw new SQLiteException("Method name must start with 'updateBy'");
 
-        // Extract field names from method name
-        String fieldsString = methodName.substring("updateBy".length());
-        String[] fieldNames = fieldsString.split("And");
+        int startIndex = "updateBy".length();
+        int endIndex = methodName.length();
 
-        if (fieldNames.length != args.length - 1)
-            throw new SQLiteException("Number of field names in method (" + fieldNames.length + 
-                                     ") does not match number of where clause values (" + (args.length - 1) + ")");
+        String whereString = methodName.substring(startIndex, endIndex);
 
-        // Build WHERE clause with placeholders
-        StringBuilder whereClause = new StringBuilder();
-        for (int i = 0; i < fieldNames.length; i++) {
-            String columnName = fieldToColumn.get(fieldNames[i].toLowerCase());
-            if (columnName == null) {
-                throw new SQLiteException("Field not found: " + fieldNames[i].toLowerCase());
-            }
+        String whereClause = extractWhereClause(whereString);
 
-            if (i > 0) {
-                whereClause.append(" AND ");
-            }
-            whereClause.append(columnName).append(" = ?");
-        }
+        // Create whereArgs from args, skipping the ContentValues
+        Object[] whereArgsObjects = new Object[args.length - 1];
+        for (int i = 1; i < args.length; i++)
+            whereArgsObjects[i - 1] = args[i];
 
-        String[] whereArgs = Stream.of(args)
-                .skip(1) // Skip ContentValues
-                .map(String::valueOf)
-                .toArray(String[]::new);
+        String[] whereArgs = createArgs(whereArgsObjects);
 
-        // Perform the update operation
-        SQLiteDatabase db = management.getWritableDatabase();
-        try {
-            return db.update(tableName, values, whereClause.toString(), whereArgs);
-        } catch (android.database.sqlite.SQLiteException e) {
-            throw new SQLiteException("Error updating entity: " + e.getMessage(), e);
-        }
-    }
-
-    /**
-     * Maneja métodos de actualización con formato "update[Fields]Where[Conditions]".
-     * Permite actualizar campos específicos basados en condiciones WHERE sin necesidad de ContentValues.
-     *
-     * @param method El metodo invocado
-     * @param args Los argumentos pasados al metodo (valores para actualizar y valores para los criterios where)
-     * @return El número de filas actualizadas
-     * @throws SQLiteException Si hay errores en los argumentos o en la ejecución de la actualización
-     */
-    public int update(Method method, Object[] args) {
-        if (args == null || args.length == 0)
-            throw new SQLiteException("At least one argument is required");
-
-        String methodName = method.getName();
-        if (!methodName.startsWith("update"))
-            throw new SQLiteException("Method name must start with 'update'");
-
-        // Split the method name at "Where" to separate fields to update and conditions
-        String[] parts = methodName.split("Where");
-
-        if (parts.length == 1) {
-            // No "Where" in the method name, just update fields
-            String fieldsToUpdatePart = parts[0].substring("update".length());
-            return processUpdate(method, args, fieldsToUpdatePart, null);
-        } else if (parts.length == 2) {
-            // Has "Where" in the method name
-            String fieldsToUpdatePart = parts[0].substring("update".length());
-            String whereConditionsPart = parts[1];
-
-            System.out.println("[DEBUG_LOG] Method name: " + methodName);
-            System.out.println("[DEBUG_LOG] Fields to update: " + fieldsToUpdatePart);
-            System.out.println("[DEBUG_LOG] Where conditions: " + whereConditionsPart);
-
-            return processUpdate(method, args, fieldsToUpdatePart, whereConditionsPart);
-        } else {
-            throw new SQLiteException("Method name has multiple 'Where' keywords: " + methodName);
-        }
-    }
-
-    /**
-     * Procesa una actualización basada en partes del nombre del metodo y argumentos.
-     * 
-     * @param method El metodo invocado
-     * @param args Los argumentos pasados al metodo
-     * @param fieldsToUpdatePart La parte del nombre del metodo que indica los campos a actualizar
-     * @param whereConditionsPart La parte del nombre del metodo que indica las condiciones WHERE
-     * @return El número de filas actualizadas
-     * @throws SQLiteException Si hay errores en los argumentos o en la ejecución de la actualización
-     */
-    private int processUpdate(Method method, Object[] args, String fieldsToUpdatePart, String whereConditionsPart) {
-        // Parse fields to update
-        String[] fieldsToUpdate = splitCamelCase(fieldsToUpdatePart);
-
-        // Create ContentValues with the fields to update
-        ContentValues values = new ContentValues();
-        for (int i = 0; i < fieldsToUpdate.length; i++) {
-            String fieldName = fieldsToUpdate[i].toLowerCase();
-            String columnName = fieldToColumn.get(fieldName);
-            if (columnName == null)
-                throw new SQLiteException("Field not found: " + fieldName);
-
-            values.put(columnName, args[i].toString());
-        }
-
-        // If there are no WHERE conditions, update all rows
-        if (whereConditionsPart == null || whereConditionsPart.isEmpty()) {
-            SQLiteDatabase db = management.getWritableDatabase();
-            try {
-                return db.update(tableName, values, null, null);
-            } catch (android.database.sqlite.SQLiteException e) {
-                throw new SQLiteException("Error updating entity: " + e.getMessage(), e);
-            }
-        }
-
-        // Parse WHERE conditions
-        String[] whereCamelCase = splitCamelCase(whereConditionsPart);
-
-        // Filter out logical operators (And, Or) from the conditions
-        List<String> whereConditionsList = new ArrayList<>();
-        for (String part : whereCamelCase) {
-            if (!part.equalsIgnoreCase("and") && !part.equalsIgnoreCase("or")) {
-                whereConditionsList.add(part);
-            }
-        }
-        String[] whereConditions = whereConditionsList.toArray(new String[0]);
-
-        // Check if we have enough arguments - be more flexible with the count
-        // For method updateNameActiveWhereNameAndLineId, we expect 4 args (2 for fields, 2 for conditions)
-        // but the parsing gives us 2 fields and 3 conditions (because it counts Name, Line, Id)
-        if (args.length < fieldsToUpdate.length)
-            throw new SQLiteException("Not enough arguments (" + args.length + 
-                                     ") for fields to update (" + fieldsToUpdate.length + ")");
-
-        // Process WHERE conditions with logical operators
-        List<String> parts = new ArrayList<>();
-        StringBuilder currentWord = new StringBuilder();
-        for (String part : whereCamelCase) {
-            if (part.equalsIgnoreCase("and") || part.equalsIgnoreCase("or")) {
-                if (currentWord.length() > 0) {
-                    parts.add(currentWord.toString());
-                    currentWord = new StringBuilder();
-                }
-                parts.add(part);
-            } else {
-                currentWord.append(part);
-            }
-        }
-        if (currentWord.length() > 0) {
-            parts.add(currentWord.toString());
-        }
-
-        // Build WHERE clause
-        StringBuilder whereClauseBuilder = new StringBuilder();
-        for (String part : parts) {
-            if (part.equalsIgnoreCase("and")) {
-                whereClauseBuilder.append(" AND ");
-            } else if (part.equalsIgnoreCase("or")) {
-                whereClauseBuilder.append(" OR ");
-            } else {
-                String fieldName = part.toLowerCase();
-                String columnName = fieldToColumn.get(fieldName);
-                if (columnName == null) {
-                    throw new SQLiteException("Field not found: " + fieldName);
-                }
-                whereClauseBuilder.append(columnName).append(" = ?");
-            }
-        }
-        String whereClause = whereClauseBuilder.toString();
-
-        // Extract WHERE args - skip the update field values
-        // Use the remaining arguments as WHERE args, up to the number of non-logical WHERE conditions
-        int remainingArgs = args.length - fieldsToUpdate.length;
-        int numWhereArgs = Math.min(remainingArgs, whereConditions.length);
-        String[] whereArgs = new String[numWhereArgs];
-        for (int i = 0; i < numWhereArgs; i++) {
-            whereArgs[i] = String.valueOf(args[i + fieldsToUpdate.length]);
-        }
-
-        // Perform the update operation
         SQLiteDatabase db = management.getWritableDatabase();
         try {
             return db.update(tableName, values, whereClause, whereArgs);
         } catch (android.database.sqlite.SQLiteException e) {
             throw new SQLiteException("Error updating entity: " + e.getMessage(), e);
+        } finally {
+            if (db != null && db.isOpen()) {
+                db.close();
+            }
+        }
+
+    }
+
+    public int update(Method method, Object[] args) {
+        String methodName = method.getName();
+
+        if (!methodName.startsWith("update"))
+            throw new SQLiteException("Method name must start with 'update'");
+
+        String[] parts = splitCamelCase(methodName.substring("update".length()));
+
+        if (parts.length < 1)
+            throw new SQLiteException("No fields to update specified");
+
+        int lastBy = 0;
+        for(int i = parts.length-1; i >= 0; i--)
+            if(parts[i].equalsIgnoreCase("by")) {
+                lastBy = i;
+                break;
+            }
+
+        final String whereClause;
+        if (lastBy > 0) {
+            StringBuilder whereString = new StringBuilder();
+            for (int i = lastBy + 1; i < parts.length; i++)
+                whereString.append(parts[i]);
+
+            whereClause = extractWhereClause(whereString.toString());
+        } else
+            whereClause = null;
+
+        final String[] partsFiltered;
+        if (lastBy > 0) {
+            partsFiltered = new String[lastBy];
+            for (int i = 0; i < lastBy; i++)
+                partsFiltered[i] = parts[i];
+        } else
+            partsFiltered = parts;
+
+
+        String[] columnsToUpdate = extractColumnsToUpdate(partsFiltered);
+
+        if (args.length < columnsToUpdate.length)
+            throw new SQLiteException("Not enough arguments provided for update");
+
+        ContentValues contentValues = new ContentValues();
+
+        for (int i = 0; i < columnsToUpdate.length; i++) {
+            if (args[i] == null) {
+                contentValues.putNull(columnsToUpdate[i]);
+                continue;
+            }
+
+            if (args[i] instanceof Boolean) {
+                contentValues.put(columnsToUpdate[i], (Boolean) args[i] ? 1 : 0);
+            } else if (args[i] instanceof Short) {
+                contentValues.put(columnsToUpdate[i], (Short) args[i]);
+            } else if (args[i] instanceof Integer) {
+                contentValues.put(columnsToUpdate[i], (Integer) args[i]);
+            } else if (args[i] instanceof Long) {
+                contentValues.put(columnsToUpdate[i], (Long) args[i]);
+            } else if (args[i] instanceof Float) {
+                contentValues.put(columnsToUpdate[i], (Float) args[i]);
+            } else if (args[i] instanceof Double) {
+                contentValues.put(columnsToUpdate[i], (Double) args[i]);
+            } else if (args[i] instanceof String) {
+                contentValues.put(columnsToUpdate[i], (String) args[i]);
+            } else if (args[i] instanceof byte[]) {
+                contentValues.put(columnsToUpdate[i], (byte[]) args[i]);
+            } else if (args[i] instanceof Byte) {
+                contentValues.put(columnsToUpdate[i], (Byte) args[i]);
+            } else if (args[i] instanceof Date) {
+                contentValues.put(columnsToUpdate[i], ((Date) args[i]).getTime());
+            } else
+                throw new SQLiteException("Unsupported type for parameter: " + args[i].getClass().getSimpleName());
+
+        }
+
+        String[] whereArgs = createArgs(args, columnsToUpdate.length);
+
+        SQLiteDatabase db = management.getWritableDatabase();
+        try {
+            return db.update(tableName, contentValues, whereClause, whereArgs);
+        } catch (android.database.sqlite.SQLiteException e) {
+            throw new SQLiteException("Error updating entity: " + e.getMessage(), e);
+        } finally {
+            if (db != null && db.isOpen()) {
+                db.close();
+            }
         }
     }
 
+
     /**
-     * Divide una cadena en formato camelCase en palabras individuales.
-     * Por ejemplo, "nameLastNameId" se convierte en ["name", "LastName", "Id"].
+     * Extracts the where clause from a method name.
+     * <p>
+     * for example: "AgeAndName" would return "age = ? AND name = ?" <br>
+     * "FirstNameAndLastName" would return "firstName = ? AND lastName = ?" <br>
+     * "AgeOrName" would return "age = ? OR name = ?" <br>
+     * "AgeAndNameAndLastName" would return "age = ? AND name = ? AND lastName = ?" <br>
+     * "AgeOrNameOrLastName" would return "age = ? OR name = ? OR lastName = ?" <br>
      *
-     * @param input La cadena en formato camelCase
-     * @return Un array de palabras individuales
+     * @param whereString The WhereString after "By"
+     * @return The where clause
      */
-    private String[] splitCamelCase(String input) {
+    public String extractWhereClause(String whereString) {
+        //Se separan las palabras por camelCase incluido los And y Or
+        String[] whereCamelCase = splitCamelCase(whereString);
+
+        List<String> parts = new ArrayList<>();
+
+        StringBuilder currentWord = new StringBuilder();
+        for (String part : whereCamelCase) {
+            if (part.equalsIgnoreCase("and") || part.equalsIgnoreCase("or")) {
+                if (currentWord.length() > 0)
+                    parts.add(currentWord.toString());
+
+                parts.add(part);
+                currentWord = new StringBuilder();
+            } else
+                currentWord.append(part);
+        }
+
+        // Add the last word if it's not empty
+        if (currentWord.length() > 0)
+            parts.add(currentWord.toString());
+
+        StringBuilder whereClause = new StringBuilder();
+
+        for (String part : parts) {
+            if (part.equalsIgnoreCase("and") || part.equalsIgnoreCase("or"))
+                whereClause.append(" ").append(part.toUpperCase());
+            else {
+                String fieldName = Character.toLowerCase(part.charAt(0)) + part.substring(1);
+                if (!fieldToColumn.containsKey(fieldName))
+                    throw new SQLiteException("Field not found: " + fieldName);
+
+                String columnName = fieldToColumn.get(fieldName);
+
+                whereClause.append(" ").append(columnName).append(" = ?");
+            }
+        }
+
+        return whereClause.toString();
+    }
+
+    public String[] extractColumnsToUpdate(String[] parts) {
+        List<String> fieldsToUpdate = new ArrayList<>();
+
+        StringBuilder currentWord = new StringBuilder();
+        for (String part : parts) {
+            if (currentWord.length() <= 0)
+                currentWord
+                        .append(Character.toLowerCase(part.charAt(0)))
+                        .append(part.substring(1).toLowerCase());
+            else
+                currentWord.append(part);
+
+            if (fieldsToUpdate.contains(currentWord.toString()))
+                continue;
+
+            if (fieldToColumn.containsKey(currentWord.toString())) {
+                fieldsToUpdate.add(currentWord.toString());
+                currentWord = new StringBuilder();
+                continue;
+            }
+
+            List<String> optionalSearch = new ArrayList<>();
+            optionalSearch.add(Character.toUpperCase(currentWord.charAt(0)) + currentWord.substring(1));
+
+            for (int i = fieldsToUpdate.size() - 1; i >= 0; i--) {
+                if (optionalSearch.size() > 1) {
+                    String lastInsertion = optionalSearch.get(0);
+                    optionalSearch.remove(0);
+                    optionalSearch.add(0, Character.toUpperCase(lastInsertion.charAt(0)) + lastInsertion.substring(1));
+                }
+
+                optionalSearch.add(0, fieldsToUpdate.get(i));
+
+                String word = String.join("", optionalSearch);
+                if (fieldToColumn.containsKey(word)) {
+                    fieldsToUpdate.add(word);
+
+                    for (int j = fieldsToUpdate.size() - 1; j >= i; j--)
+                        fieldsToUpdate.remove(j);
+
+                    currentWord = new StringBuilder();
+
+                    break;
+                }
+
+            }
+
+        }
+
+        if (currentWord.length() > 0) {
+            if (!fieldToColumn.containsKey(currentWord.toString()))
+                throw new SQLiteException("Field not found: " + currentWord.toString());
+
+            fieldsToUpdate.add(currentWord.toString());
+        }
+
+        List<String> columns = new ArrayList<>();
+
+        for (String field : fieldsToUpdate) {
+            if (!fieldToColumn.containsKey(field))
+                continue;
+
+            columns.add(fieldToColumn.get(field));
+        }
+
+        return columns.toArray(new String[0]);
+    }
+
+    /**
+     * Converts an array of objects to an array of strings for use in SQL queries.
+     * Handles various data types and converts them to appropriate string representations.
+     *
+     * @param args The array of objects to convert
+     * @return An array of strings representing the input objects
+     * @throws SQLiteException If an unsupported data type is encountered
+     */
+    public String[] createArgs(Object[] args) {
+        if (args == null || args.length == 0)
+            return new String[0];
+
+        String[] result = new String[args.length];
+        for(int i = 0; i < args.length; i++) {
+            String typeName = args[i].getClass().getSimpleName().toLowerCase();
+
+            switch (typeName) {
+                case "string":
+                case "short":
+                case "int":
+                case "integer":
+                case "long":
+                case "double":
+                case "float":
+                    result[i] = args[i].toString();
+                    break;
+                case "boolean":
+                    boolean value = (boolean) args[i];
+                    result[i] = value ? "1" : "0";
+                    break;
+                case "date":
+                    result[i] = String.valueOf(((Date) args[i]).getTime());
+                    break;
+                default:
+                    throw new SQLiteException("Unsupported type for parameter: " + args[i].getClass().getSimpleName());
+            }
+
+        }
+
+        return result;
+    }
+
+    /**
+     * Creates an array of string arguments for SQL queries, starting from a specific index.
+     *
+     * @param args The original arguments
+     * @param startIndex The index to start from
+     * @return An array of string arguments
+     */
+    public String[] createArgs(Object[] args, int startIndex) {
+        if (args == null || args.length <= startIndex)
+            return new String[0];
+
+        String[] result = new String[args.length - startIndex];
+        for(int i = startIndex; i < args.length; i++) {
+            String typeName = args[i].getClass().getSimpleName().toLowerCase();
+
+            switch (typeName) {
+                case "string":
+                case "short":
+                case "int":
+                case "integer":
+                case "long":
+                case "double":
+                case "float":
+                    result[i - startIndex] = args[i].toString();
+                    break;
+                case "boolean":
+                    boolean value = (boolean) args[i];
+                    result[i - startIndex] = value ? "1" : "0";
+                    break;
+                case "date":
+                    result[i - startIndex] = String.valueOf(((Date) args[i]).getTime());
+                    break;
+                default:
+                    throw new SQLiteException("Unsupported type for parameter: " + args[i].getClass().getSimpleName());
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Splits a camelCase string into an array of words.
+     * For example, "findByNameAndAge" would be split into ["find", "By", "Name", "And", "Age"].
+     *
+     * @param input The camelCase string to split
+     * @return An array of words
+     */
+    public String[] splitCamelCase(String input) {
         List<String> words = new ArrayList<>();
         StringBuilder currentWord = new StringBuilder();
 
@@ -285,6 +405,7 @@ public class QueryUpdateHandler<T> {
                 words.add(currentWord.toString());
                 currentWord = new StringBuilder();
             }
+
             currentWord.append(c);
         }
 
@@ -293,9 +414,6 @@ public class QueryUpdateHandler<T> {
 
         return words.toArray(new String[0]);
     }
-
-
-
 
 
 

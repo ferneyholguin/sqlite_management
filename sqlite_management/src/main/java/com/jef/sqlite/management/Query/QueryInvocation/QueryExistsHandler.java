@@ -180,7 +180,7 @@ public class QueryExistsHandler<T> {
                     break;
                 case "date":
                     result[i] = String.valueOf(((Date) args[i]).getTime());
-
+                    break;
                 default:
                     throw new SQLiteException("Unsupported type for parameter: " + args[i].getClass().getSimpleName());
             }

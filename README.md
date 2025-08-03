@@ -41,12 +41,12 @@ Luego, añade la dependencia a tu archivo `build.gradle.kts` (para Kotlin DSL) o
 ```gradle
 // Para Gradle Kotlin DSL (build.gradle.kts)
 dependencies {
-    implementation("com.github.ferneyholguin:sqlite_management:1.1.2")
+    implementation("com.github.ferneyholguin:sqlite_management:1.1.3")
 }
 
 // Para Gradle Groovy (build.gradle)
 dependencies {
-    implementation 'com.github.ferneyholguin:sqlite_management:1.1.2'
+    implementation 'com.github.ferneyholguin:sqlite_management:1.1.3'
 }
 ```
 
@@ -92,7 +92,7 @@ public interface ProductoQuery extends DynamicQuery<Producto> {
     List<Producto> findAllByCategoriaIdOrderByPrecioAsc(int categoriaId);
 
     // Consultas de guardado
-    Producto save(Producto producto);
+    long save(Producto producto);
 
     // Consultas de actualización
     int updateByNombre(ContentValues values, String nombre);
@@ -154,7 +154,7 @@ ProductoQuery productoQuery = QueryFactory.create(ProductoQuery.class, baseDeDat
 Producto producto = new Producto();
 producto.setNombre("Smartphone XYZ");
 producto.setPrecio(599.99);
-Producto productoGuardado = productoQuery.save(producto);
+long idProductoGuardado = productoQuery.save(producto);
 
 // Buscar productos
 List<Producto> todosLosProductos = productoQuery.findAll();
@@ -399,7 +399,52 @@ boolean existsByRolAndDepartamento(String rol, String departamento);
 - Estas consultas son útiles para validaciones rápidas sin necesidad de recuperar los datos completos.
 - Internamente, estas consultas utilizan `COUNT(*)` para optimizar el rendimiento.
 
-### 5. Consultas SQL Personalizadas
+### 5. Consultas de Eliminación (Delete Queries)
+
+Las consultas de eliminación permiten eliminar registros de la base de datos que cumplan con ciertos criterios, devolviendo el número de registros eliminados.
+
+#### 5.1 Eliminación por Campo Específico
+
+**Patrón:** `deleteBy[NombreCampo](Tipo valor)`
+
+**Ejemplos:**
+```java
+// Eliminar un producto por ID
+int deleteById(int id);
+
+// Eliminar productos por nombre
+int deleteByNombre(String nombre);
+
+// Eliminar productos por estado activo
+int deleteByActivo(boolean activo);
+
+// Eliminar un usuario por email
+int deleteByEmail(String email);
+```
+
+#### 5.2 Eliminación con Múltiples Condiciones
+
+**Patrón:** `deleteBy[Condicion1]And[Condicion2]...(Tipo valorCondicion1, Tipo valorCondicion2, ...)`
+
+**Ejemplos:**
+```java
+// Eliminar productos por nombre y estado
+int deleteByNombreAndActivo(String nombre, boolean activo);
+
+// Eliminar productos por precio y categoría
+int deleteByPrecioAndCategoria(double precio, String categoria);
+
+// Eliminar usuarios por rol y departamento
+int deleteByRolAndDepartamento(String rol, String departamento);
+```
+
+**Notas:**
+- Las consultas de eliminación devuelven un valor `int` que representa el número de filas eliminadas.
+- Estas consultas son útiles para eliminar registros que cumplan con criterios específicos.
+- Se debe tener precaución al utilizar estas consultas, ya que la eliminación es permanente.
+- Se pueden combinar múltiples condiciones con operadores AND para realizar eliminaciones más específicas.
+
+### 6. Consultas SQL Personalizadas
 
 **Patrón:** `@SQLiteQuery(sql = "consulta SQL")`
 
@@ -512,7 +557,7 @@ producto.setPrecio(599.99);
 boolean esValido = productoQuery.validate(producto);
 if (esValido) {
     // El producto es válido, proceder a guardarlo
-    productoQuery.save(producto);
+    long idProducto = productoQuery.save(producto);
 } else {
     // La entidad no es válida
     System.err.println("La entidad no es válida");
@@ -533,38 +578,13 @@ try {
     // Validar el producto antes de guardarlo
     productoQuery.validateOrThrow(producto);
     // Si no se lanza excepción, la entidad es válida
-    productoQuery.save(producto);
+    long idProducto = productoQuery.save(producto);
 } catch (SQLiteException e) {
     // La validación falló, manejar el error con detalles específicos
     System.err.println("Error de validación: " + e.getMessage());
 }
 ```
 
-#### 2. Usando la clase `QueryValidatorHandler` directamente
-
-Para casos más específicos, también se puede utilizar la clase `QueryValidatorHandler` directamente:
-
-```java
-// Crear una instancia del validador
-QueryValidatorHandler<Producto> validador = new QueryValidatorHandler<>(Producto.class, baseDeDatos);
-
-// Crear un producto para validar
-Producto producto = new Producto();
-producto.setNombre("Smartphone XYZ");
-producto.setPrecio(599.99);
-
-try {
-    // Validar el producto antes de guardarlo
-    boolean esValido = validador.validateEntity(producto);
-    if (esValido) {
-        // El producto es válido, proceder a guardarlo
-        productoQuery.save(producto);
-    }
-} catch (SQLiteException e) {
-    // La validación falló, manejar el error
-    System.err.println("Error de validación: " + e.getMessage());
-}
-```
 
 En ambos casos, la validación verifica:
 
@@ -616,11 +636,10 @@ En este ejemplo:
 1. Los nombres de los métodos deben seguir exactamente los patrones descritos para que el sistema pueda interpretarlos correctamente.
 2. Los nombres de los campos en los métodos deben coincidir con los nombres de los campos en la clase de entidad (no con los nombres de las columnas en la base de datos).
 3. Las consultas con joins se manejan automáticamente cuando se recuperan entidades, siempre que las relaciones estén correctamente definidas con la anotación `@Join`.
-4. Las consultas de guardado manejan automáticamente las relaciones, guardando primero las entidades relacionadas si es necesario.
-5. Las consultas de actualización no actualizan las claves primarias.
-6. Es recomendable validar las entidades antes de guardarlas para evitar errores de restricción en la base de datos.
-7. Para validaciones más estrictas, utilice el método `validateOrThrow` que proporciona mensajes de error detallados.
-8. Los atributos `permitNull`, `defaultValue` y `unique` en la anotación `@Join` permiten definir restricciones avanzadas en las relaciones entre tablas.
+4. Las consultas de actualización no actualizan las claves primarias.
+5. Es recomendable validar las entidades antes de guardarlas para evitar errores de restricción en la base de datos.
+6. Para validaciones más estrictas, utilice el método `validateOrThrow` que proporciona mensajes de error detallados.
+7. Los atributos `permitNull`, `defaultValue` y `unique` en la anotación `@Join` permiten definir restricciones avanzadas en las relaciones entre tablas.
 
 ## Licencia
 
